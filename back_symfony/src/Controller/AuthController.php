@@ -3,11 +3,19 @@
 namespace App\Controller;
 
 use App\Repository\AuthRepository;
+use App\Security\AuthRateLimiter;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 
 class AuthController
 {
+    private AuthRateLimiter $rateLimiter;
+
+    public function __construct(AuthRateLimiter $rateLimiter)
+    {
+        $this->rateLimiter = $rateLimiter;
+    }
+
     private function extractBearerToken(Request $request): ?string
     {
         $authorization = trim((string) $request->headers->get('Authorization', ''));
@@ -22,6 +30,14 @@ class AuthController
     public function register(Request $request, AuthRepository $authRepository): JsonResponse
     {
         $authRepository->initSchema();
+        $ip = (string) ($request->getClientIp() ?? 'unknown');
+        $registerLimit = $this->rateLimiter->consume('register_ip', $ip, 5, 60);
+        if (!$registerLimit['allowed']) {
+            return new JsonResponse([
+                'message' => 'Trop de tentatives de creation de compte',
+                'retry_after_seconds' => $registerLimit['retry_after_seconds'],
+            ], 429);
+        }
 
         try {
             $payload = $request->toArray();
@@ -57,6 +73,14 @@ class AuthController
     public function login(Request $request, AuthRepository $authRepository): JsonResponse
     {
         $authRepository->initSchema();
+        $ip = (string) ($request->getClientIp() ?? 'unknown');
+        $ipLimit = $this->rateLimiter->consume('login_ip', $ip, 10, 60);
+        if (!$ipLimit['allowed']) {
+            return new JsonResponse([
+                'message' => 'Trop de tentatives de connexion',
+                'retry_after_seconds' => $ipLimit['retry_after_seconds'],
+            ], 429);
+        }
 
         try {
             $payload = $request->toArray();
@@ -66,6 +90,13 @@ class AuthController
 
         $email = strtolower(trim((string) ($payload['email'] ?? '')));
         $password = (string) ($payload['password'] ?? '');
+        $emailLimit = $this->rateLimiter->consume('login_email', $email, 7, 60);
+        if (!$emailLimit['allowed']) {
+            return new JsonResponse([
+                'message' => 'Trop de tentatives pour ce compte',
+                'retry_after_seconds' => $emailLimit['retry_after_seconds'],
+            ], 429);
+        }
 
         $userId = $authRepository->authenticate($email, $password);
         if ($userId === null) {

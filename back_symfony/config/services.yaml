@@ -36,6 +36,10 @@ services:
             $password: '%app.db_password%'
             $sslMode: '%app.db_sslmode%'
 
+    App\Security\AuthRateLimiter:
+        arguments:
+            $cache: '@cache.app'
+
     App\EventSubscriber\CorsSubscriber:
         arguments:
             $allowedOrigin: '%app.cors_allowed_origin%'

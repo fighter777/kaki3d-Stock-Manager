@@ -31,6 +31,10 @@ Un token utilisateur est retourné par `register` / `login` et peut être utilis
 `logout` révoque ce token.
 `change-password` met à jour le mot de passe, révoque les sessions existantes et renvoie un nouveau token.
 
+Rate limit auth:
+- `register`: 5 tentatives / minute / IP
+- `login`: 10 tentatives / minute / IP + 7 tentatives / minute / email
+
 ## Configuration
 
 Variables à ajuster:
