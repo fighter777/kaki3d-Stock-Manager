@@ -1,16 +1,47 @@
-# front_flutter
+# Front Flutter (Mobile NFC)
 
-A new Flutter project.
+App mobile Flutter pour scanner un tag NFC de bobine et enregistrer la consommation via API Symfony.
 
-## Getting Started
+## Fonctions MVP
 
-This project is a starting point for a Flutter application.
+- Scan NFC (Android / iOS)
+- Lecture UID du tag
+- Appel API: `GET /api/spools/nfc/{uid}`
+- Affichage bobine trouvée
+- Enregistrement consommation: `POST /api/usage-logs`
 
-A few resources to get you started if this is your first Flutter project:
+## Configuration API
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+Passer les valeurs au run/build via `--dart-define`:
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+- `API_BASE_URL`
+- `API_TOKEN`
+
+Exemple Android (émulateur):
+
+```bash
+flutter run \
+  --dart-define=API_BASE_URL=http://10.0.2.2:8000 \
+  --dart-define=API_TOKEN=change_me_secure_token
+```
+
+Exemple appareil réel:
+
+```bash
+flutter run \
+  --dart-define=API_BASE_URL=http://<IP_PC_LAN>:8000 \
+  --dart-define=API_TOKEN=change_me_secure_token
+```
+
+## Permissions
+
+- Android: `android.permission.NFC` + feature NFC dans `AndroidManifest.xml`
+- iOS: `NFCReaderUsageDescription` dans `Info.plist` (+ capability NFC à activer dans Xcode)
+
+## Validation locale
+
+```bash
+flutter analyze
+flutter test
+```
+
