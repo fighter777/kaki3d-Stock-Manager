@@ -35,6 +35,11 @@ Rate limit auth:
 - `register`: 5 tentatives / minute / IP
 - `login`: 10 tentatives / minute / IP + 7 tentatives / minute / email
 
+Audit logs:
+- événements tracés: `register`, `login`, `logout`, `change_password`
+- succès/échec, IP, email/user_id, message, metadata
+- table: `public.app_audit_logs`
+
 ## Configuration
 
 Variables à ajuster:

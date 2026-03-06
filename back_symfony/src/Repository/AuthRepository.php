@@ -35,6 +35,20 @@ class AuthRepository
                 revoked_at TIMESTAMPTZ NULL
             );
         SQL);
+
+        $pdo->exec(<<<SQL
+            CREATE TABLE IF NOT EXISTS public.app_audit_logs (
+                id_audit SERIAL PRIMARY KEY,
+                event_type TEXT NOT NULL,
+                success BOOLEAN NOT NULL,
+                message TEXT NULL,
+                ip_address TEXT NULL,
+                email TEXT NULL,
+                user_id INT NULL,
+                metadata JSONB NULL,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            );
+        SQL);
     }
 
     public function register(string $email, string $password): int
