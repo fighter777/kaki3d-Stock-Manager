@@ -4,6 +4,7 @@ App mobile Flutter pour scanner un tag NFC de bobine et enregistrer la consommat
 
 ## Fonctions MVP
 
+- Inscription / connexion (`register` / `login`)
 - Scan NFC (Android / iOS)
 - Lecture UID du tag
 - Appel API: `GET /api/spools/nfc/{uid}`
@@ -15,7 +16,7 @@ App mobile Flutter pour scanner un tag NFC de bobine et enregistrer la consommat
 Passer les valeurs au run/build via `--dart-define`:
 
 - `API_BASE_URL`
-- `API_TOKEN`
+- `API_TOKEN` (optionnel: token bootstrap)
 
 Exemple Android (émulateur):
 
@@ -44,4 +45,3 @@ flutter run \
 flutter analyze
 flutter test
 ```
-

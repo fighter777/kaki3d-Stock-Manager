@@ -11,7 +11,7 @@ const _apiBaseUrl = String.fromEnvironment(
   'API_BASE_URL',
   defaultValue: 'http://127.0.0.1:8000',
 );
-const _apiToken = String.fromEnvironment(
+const _bootstrapApiToken = String.fromEnvironment(
   'API_TOKEN',
   defaultValue: 'change_me_secure_token',
 );
@@ -43,13 +43,17 @@ class NfcStockPage extends StatefulWidget {
 
 class _NfcStockPageState extends State<NfcStockPage> {
   final ApiClient _apiClient = ApiClient();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _projectController = TextEditingController();
   final TextEditingController _weightController = TextEditingController(text: '10');
 
   bool _nfcAvailable = false;
+  bool _isAuthLoading = false;
   bool _isScanning = false;
   bool _isSaving = false;
   String _status = 'Verification NFC...';
+  String? _authToken;
   String? _lastUid;
   Spool? _spool;
   String? _error;
@@ -57,11 +61,16 @@ class _NfcStockPageState extends State<NfcStockPage> {
   @override
   void initState() {
     super.initState();
+    if (_bootstrapApiToken != 'change_me_secure_token') {
+      _authToken = _bootstrapApiToken;
+    }
     _checkNfc();
   }
 
   @override
   void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
     _projectController.dispose();
     _weightController.dispose();
     super.dispose();
@@ -80,8 +89,53 @@ class _NfcStockPageState extends State<NfcStockPage> {
     });
   }
 
+  Future<void> _register() => _auth(mode: 'register');
+  Future<void> _login() => _auth(mode: 'login');
+
+  Future<void> _auth({required String mode}) async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+    if (email.isEmpty || password.length < 8) {
+      setState(() {
+        _error = 'Email requis et mot de passe >= 8 caracteres.';
+      });
+      return;
+    }
+
+    setState(() {
+      _isAuthLoading = true;
+      _error = null;
+    });
+
+    try {
+      final token = mode == 'register'
+          ? await _apiClient.register(email: email, password: password)
+          : await _apiClient.login(email: email, password: password);
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _authToken = token;
+        _status = mode == 'register' ? 'Compte cree.' : 'Connecte.';
+      });
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _error = 'Erreur auth: $e';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isAuthLoading = false;
+        });
+      }
+    }
+  }
+
   Future<void> _startScan() async {
-    if (!_nfcAvailable || _isScanning) {
+    if (!_nfcAvailable || _isScanning || _authToken == null) {
       return;
     }
 
@@ -114,7 +168,7 @@ class _NfcStockPageState extends State<NfcStockPage> {
           }
 
           try {
-            final spool = await _apiClient.getSpoolByUid(uid);
+            final spool = await _apiClient.getSpoolByUid(uid, _authToken!);
             if (!mounted) {
               return;
             }
@@ -156,7 +210,7 @@ class _NfcStockPageState extends State<NfcStockPage> {
   }
 
   Future<void> _saveUsage() async {
-    if (_spool == null || _isSaving) {
+    if (_spool == null || _isSaving || _authToken == null) {
       return;
     }
 
@@ -182,6 +236,7 @@ class _NfcStockPageState extends State<NfcStockPage> {
 
     try {
       await _apiClient.createUsage(
+        token: _authToken!,
         spoolId: _spool!.id,
         weightUsed: weightUsed,
         projectName: projectName,
@@ -260,13 +315,58 @@ class _NfcStockPageState extends State<NfcStockPage> {
               const SizedBox(height: 8),
               Text(_error!, style: const TextStyle(color: Colors.red)),
             ],
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
+            _buildAuthCard(),
+            const SizedBox(height: 12),
             FilledButton(
-              onPressed: _nfcAvailable && !_isScanning ? _startScan : null,
+              onPressed: _nfcAvailable && !_isScanning && _authToken != null ? _startScan : null,
               child: const Text('Scanner une bobine'),
             ),
             const SizedBox(height: 16),
             if (_spool != null) _buildSpoolCard(context),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAuthCard() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          children: [
+            Text(_authToken == null ? 'Authentification requise' : 'Authentifie'),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _emailController,
+              keyboardType: TextInputType.emailAddress,
+              decoration: const InputDecoration(labelText: 'Email'),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _passwordController,
+              obscureText: true,
+              decoration: const InputDecoration(labelText: 'Mot de passe'),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: _isAuthLoading ? null : _register,
+                    child: const Text('Creer compte'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: _isAuthLoading ? null : _login,
+                    child: const Text('Connexion'),
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       ),
@@ -354,13 +454,39 @@ class ApiClient {
 
   Uri _uri(String path) => Uri.parse('$_apiBaseUrl$path');
 
-  Map<String, String> get _headers => {
+  Map<String, String> _headersWithToken(String token) => {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer $_apiToken',
+        'Authorization': 'Bearer $token',
       };
 
-  Future<Spool> getSpoolByUid(String uid) async {
-    final response = await _client.get(_uri('/api/spools/nfc/$uid'), headers: _headers);
+  Future<String> register({required String email, required String password}) {
+    return _auth('/api/auth/register', email, password);
+  }
+
+  Future<String> login({required String email, required String password}) {
+    return _auth('/api/auth/login', email, password);
+  }
+
+  Future<String> _auth(String path, String email, String password) async {
+    final response = await _client.post(
+      _uri(path),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'email': email, 'password': password}),
+    );
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+      return decoded['access_token'] as String;
+    }
+
+    throw Exception('HTTP ${response.statusCode}: ${response.body}');
+  }
+
+  Future<Spool> getSpoolByUid(String uid, String token) async {
+    final response = await _client.get(
+      _uri('/api/spools/nfc/$uid'),
+      headers: _headersWithToken(token),
+    );
 
     if (response.statusCode == 200) {
       final decoded = jsonDecode(response.body) as Map<String, dynamic>;
@@ -371,6 +497,7 @@ class ApiClient {
   }
 
   Future<void> createUsage({
+    required String token,
     required int spoolId,
     required double weightUsed,
     required String projectName,
@@ -385,7 +512,7 @@ class ApiClient {
 
     final response = await _client.post(
       _uri('/api/usage-logs'),
-      headers: _headers,
+      headers: _headersWithToken(token),
       body: jsonEncode(payload),
     );
 

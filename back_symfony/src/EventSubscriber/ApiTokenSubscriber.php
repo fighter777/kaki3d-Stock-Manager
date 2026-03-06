@@ -2,6 +2,7 @@
 
 namespace App\EventSubscriber;
 
+use App\Repository\AuthRepository;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpKernel\Event\RequestEvent;
@@ -9,10 +10,12 @@ use Symfony\Component\HttpKernel\KernelEvents;
 
 class ApiTokenSubscriber implements EventSubscriberInterface
 {
+    private AuthRepository $authRepository;
     private string $apiToken;
 
-    public function __construct(string $apiToken)
+    public function __construct(AuthRepository $authRepository, string $apiToken)
     {
+        $this->authRepository = $authRepository;
         $this->apiToken = $apiToken;
     }
 
@@ -36,14 +39,28 @@ class ApiTokenSubscriber implements EventSubscriberInterface
             return;
         }
 
-        if ($request->getMethod() === 'OPTIONS' || $path === '/api/health') {
+        if ($request->getMethod() === 'OPTIONS' || in_array($path, ['/api/health', '/api/auth/register', '/api/auth/login'], true)) {
             return;
         }
 
-        $authorization = $request->headers->get('Authorization', '');
-        $expectedHeader = 'Bearer '.$this->apiToken;
+        $authorization = trim((string) $request->headers->get('Authorization', ''));
+        if (!str_starts_with($authorization, 'Bearer ')) {
+            $event->setResponse(new JsonResponse(['message' => 'Unauthorized'], 401));
+            return;
+        }
 
-        if (!hash_equals($expectedHeader, $authorization)) {
+        $token = trim(substr($authorization, 7));
+        if ($token === '') {
+            $event->setResponse(new JsonResponse(['message' => 'Unauthorized'], 401));
+            return;
+        }
+
+        // Temporary bootstrap: the static token from env remains accepted.
+        if ($token === $this->apiToken) {
+            return;
+        }
+
+        if (!$this->authRepository->isTokenValid($token)) {
             $event->setResponse(new JsonResponse(['message' => 'Unauthorized'], 401));
         }
     }
