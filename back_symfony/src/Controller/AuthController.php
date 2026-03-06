@@ -8,6 +8,17 @@ use Symfony\Component\HttpFoundation\Request;
 
 class AuthController
 {
+    private function extractBearerToken(Request $request): ?string
+    {
+        $authorization = trim((string) $request->headers->get('Authorization', ''));
+        if (!str_starts_with($authorization, 'Bearer ')) {
+            return null;
+        }
+
+        $token = trim(substr($authorization, 7));
+        return $token !== '' ? $token : null;
+    }
+
     public function register(Request $request, AuthRepository $authRepository): JsonResponse
     {
         $authRepository->initSchema();
@@ -69,5 +80,18 @@ class AuthController
             'access_token' => $token,
             'token_type' => 'Bearer',
         ]);
+    }
+
+    public function logout(Request $request, AuthRepository $authRepository): JsonResponse
+    {
+        $authRepository->initSchema();
+        $token = $this->extractBearerToken($request);
+        if ($token === null) {
+            return new JsonResponse(['message' => 'Authorization Bearer token requis'], 401);
+        }
+
+        $authRepository->revokeToken($token);
+
+        return new JsonResponse(['status' => 'logged_out']);
     }
 }

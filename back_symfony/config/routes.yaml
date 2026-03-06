@@ -27,3 +27,8 @@ api_auth_login:
     path: /api/auth/login
     controller: App\Controller\AuthController::login
     methods: [POST]
+
+api_auth_logout:
+    path: /api/auth/logout
+    controller: App\Controller\AuthController::logout
+    methods: [POST]

@@ -134,6 +134,43 @@ class _NfcStockPageState extends State<NfcStockPage> {
     }
   }
 
+  Future<void> _logout() async {
+    if (_authToken == null || _isAuthLoading) {
+      return;
+    }
+
+    setState(() {
+      _isAuthLoading = true;
+      _error = null;
+    });
+
+    try {
+      await _apiClient.logout(_authToken!);
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _authToken = null;
+        _spool = null;
+        _lastUid = null;
+        _status = 'Deconnecte.';
+      });
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _error = 'Erreur logout: $e';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isAuthLoading = false;
+        });
+      }
+    }
+  }
+
   Future<void> _startScan() async {
     if (!_nfcAvailable || _isScanning || _authToken == null) {
       return;
@@ -367,6 +404,11 @@ class _NfcStockPageState extends State<NfcStockPage> {
                 ),
               ],
             ),
+            const SizedBox(height: 8),
+            OutlinedButton(
+              onPressed: _authToken != null && !_isAuthLoading ? _logout : null,
+              child: const Text('Logout'),
+            ),
           ],
         ),
       ),
@@ -465,6 +507,17 @@ class ApiClient {
 
   Future<String> login({required String email, required String password}) {
     return _auth('/api/auth/login', email, password);
+  }
+
+  Future<void> logout(String token) async {
+    final response = await _client.post(
+      _uri('/api/auth/logout'),
+      headers: _headersWithToken(token),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('HTTP ${response.statusCode}: ${response.body}');
+    }
   }
 
   Future<String> _auth(String path, String email, String password) async {

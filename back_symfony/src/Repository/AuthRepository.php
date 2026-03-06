@@ -3,7 +3,6 @@
 namespace App\Repository;
 
 use App\Infrastructure\DatabaseConnectionFactory;
-use DateTimeImmutable;
 use PDO;
 
 class AuthRepository
@@ -33,7 +32,6 @@ class AuthRepository
                 id_user INT NOT NULL REFERENCES public.app_users(id_user) ON DELETE CASCADE,
                 token_hash TEXT NOT NULL,
                 created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                expires_at TIMESTAMPTZ NOT NULL,
                 revoked_at TIMESTAMPTZ NULL
             );
         SQL);
@@ -67,20 +65,18 @@ class AuthRepository
         return (int) $user['id_user'];
     }
 
-    public function issueToken(int $userId, int $ttlHours = 24): string
+    public function issueToken(int $userId): string
     {
         $token = bin2hex(random_bytes(32));
         $tokenHash = hash('sha256', $token);
-        $expiresAt = (new DateTimeImmutable(sprintf('+%d hours', $ttlHours)))->format('Y-m-d H:i:sP');
 
         $pdo = $this->connectionFactory->create();
         $stmt = $pdo->prepare(
-            'INSERT INTO public.api_tokens (id_user, token_hash, expires_at) VALUES (:id_user, :token_hash, :expires_at)'
+            'INSERT INTO public.api_tokens (id_user, token_hash) VALUES (:id_user, :token_hash)'
         );
         $stmt->execute([
             'id_user' => $userId,
             'token_hash' => $tokenHash,
-            'expires_at' => $expiresAt,
         ]);
 
         return $token;
@@ -94,12 +90,23 @@ class AuthRepository
             'SELECT 1 FROM public.api_tokens
              WHERE token_hash = :token_hash
                AND revoked_at IS NULL
-               AND expires_at > NOW()
              LIMIT 1'
         );
         $stmt->execute(['token_hash' => $tokenHash]);
 
         return (bool) $stmt->fetchColumn();
     }
-}
 
+    public function revokeToken(string $plainToken): void
+    {
+        $tokenHash = hash('sha256', $plainToken);
+        $pdo = $this->connectionFactory->create();
+        $stmt = $pdo->prepare(
+            'UPDATE public.api_tokens
+             SET revoked_at = NOW()
+             WHERE token_hash = :token_hash
+               AND revoked_at IS NULL'
+        );
+        $stmt->execute(['token_hash' => $tokenHash]);
+    }
+}

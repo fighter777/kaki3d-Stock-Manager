@@ -5,6 +5,7 @@ App mobile Flutter pour scanner un tag NFC de bobine et enregistrer la consommat
 ## Fonctions MVP
 
 - Inscription / connexion (`register` / `login`)
+- Logout (`/api/auth/logout`)
 - Scan NFC (Android / iOS)
 - Lecture UID du tag
 - Appel API: `GET /api/spools/nfc/{uid}`
