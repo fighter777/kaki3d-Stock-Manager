@@ -1,0 +1,19 @@
+api_health:
+    path: /api/health
+    controller: App\Controller\ApiController::health
+    methods: [GET]
+
+api_inventory:
+    path: /api/spools
+    controller: App\Controller\ApiController::inventory
+    methods: [GET]
+
+api_spool_by_nfc:
+    path: /api/spools/nfc/{uid}
+    controller: App\Controller\ApiController::spoolByNfc
+    methods: [GET]
+
+api_usage_create:
+    path: /api/usage-logs
+    controller: App\Controller\ApiController::createUsage
+    methods: [POST]
