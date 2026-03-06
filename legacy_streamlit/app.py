@@ -5,18 +5,21 @@ from action import get_inventory, add_spool, get_or_create_id, update_spool, usa
 import time 
 import datetime
 import base64
+from pathlib import Path
 from config_custom import pseudo
 import plotly.express as px
 
 # Configuration de la page
 st.set_page_config(page_title="Mon Stock de Filament - Kaki3D", layout="wide")
 
+BASE_DIR = Path(__file__).resolve().parent
+
 def get_base64(path):
     with open(path, "rb") as image_file:
         return base64.b64encode(image_file.read()).decode()
 
 try:
-    bin_str = get_base64("asset/new_logo_kaki3d.png")
+    bin_str = get_base64(BASE_DIR / "asset" / "new_logo_kaki3d.png")
     logo_html = f'data:image/png;base64,{bin_str}'
 except Exception:
     logo_html = ""

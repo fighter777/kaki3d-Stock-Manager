@@ -27,6 +27,21 @@ class ApiController
         return new JsonResponse($spoolRepository->getInventory());
     }
 
+    public function inventoryAggregated(SpoolRepository $spoolRepository): JsonResponse
+    {
+        return new JsonResponse($spoolRepository->getAggregatedInventory());
+    }
+
+    public function brands(SpoolRepository $spoolRepository): JsonResponse
+    {
+        return new JsonResponse($spoolRepository->getAllBrands());
+    }
+
+    public function materials(SpoolRepository $spoolRepository): JsonResponse
+    {
+        return new JsonResponse($spoolRepository->getAllMaterials());
+    }
+
     public function spoolByNfc(string $uid, SpoolRepository $spoolRepository): JsonResponse
     {
         $spool = $spoolRepository->getByNfcUid($uid);

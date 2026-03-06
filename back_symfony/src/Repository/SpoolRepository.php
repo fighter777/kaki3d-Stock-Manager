@@ -33,6 +33,40 @@ class SpoolRepository
         return $this->runQuery($sql);
     }
 
+    public function getAggregatedInventory(): array
+    {
+        $sql = <<<SQL
+            SELECT
+                m.nom_marques,
+                mat.type_materials,
+                s.color_name,
+                SUM(s.initial_weight) AS total_initial,
+                (SUM(s.initial_weight) - COALESCE(SUM(u.weight_used), 0)) AS total_restant
+            FROM public.spools s
+            JOIN public.marques m ON s.id_marques = m.id_marques
+            JOIN public.materials mat ON s.id_materials = mat.id_materials
+            LEFT JOIN public.usage_logs u ON s.id_spools = u.id_spools
+            GROUP BY m.nom_marques, mat.type_materials, s.color_name
+            ORDER BY m.nom_marques
+        SQL;
+
+        return $this->runQuery($sql);
+    }
+
+    public function getAllBrands(): array
+    {
+        $sql = 'SELECT id_marques, nom_marques FROM public.marques ORDER BY nom_marques';
+
+        return $this->runQuery($sql);
+    }
+
+    public function getAllMaterials(): array
+    {
+        $sql = 'SELECT id_materials, type_materials FROM public.materials ORDER BY type_materials';
+
+        return $this->runQuery($sql);
+    }
+
     public function getByNfcUid(string $uid): ?array
     {
         $sql = <<<SQL

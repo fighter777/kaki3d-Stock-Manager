@@ -1,173 +1,93 @@
-# 🎯 Kaki3D — Stock Manager
+# Kaki3D Stock Manager
 
-Gestionnaire d'inventaire de bobines de filament pour imprimante 3D.  
-Développé avec **Python**, **Streamlit**, **PostgreSQL** et intégration **NFC**.
+Projet decoupe en 2 applications:
 
-![Python](https://img.shields.io/badge/Python-3.11-blue)
-![Streamlit](https://img.shields.io/badge/Streamlit-1.54-red)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Supabase-green)
+- `back_symfony`: API REST (auth, inventaire, consommation, stats)
+- `front_flutter`: client mobile NFC qui consomme l'API
 
----
+Le code historique Streamlit/Python est deplace dans `legacy_streamlit/`.
 
-## ✨ Fonctionnalités
-
-- 📦 **Inventaire** — visualisation du stock avec poids restant en temps réel
-- ➕ **Ajout de bobines** — enregistrement des paramètres slicer (température, débit, Pressure Advance...)
-- ✏️ **Modification** — mise à jour des paramètres d'une bobine existante
-- ⚖️ **Consommation** — suivi des impressions et déduction automatique du poids
-- 📡 **Scanner NFC** — identification d'une bobine par tag NFC (Android + Chrome)
-- 📊 **Statistiques** — graphiques de consommation par mois, projet et matière
-
----
-
-## 🛠️ Stack technique
-
-| Outil | Rôle |
-|-------|------|
-| Python 3.11 | Backend |
-| Streamlit | Interface web |
-| PostgreSQL (Supabase) | Base de données cloud |
-| psycopg2 | Connecteur Python ↔ PostgreSQL |
-| Web NFC API | Lecture des tags NFC depuis le navigateur |
-
----
-
-## 🚀 Installation locale
-
-### Prérequis
-
-- Python 3.11+
-- Un compte [Supabase](https://supabase.com) (gratuit)
-
-### 1. Clone le repo
-
-```bash
-git clone https://github.com/Kakicrypto/kaki3d-Stock-Manager.git
-cd kaki3d-Stock-Manager
-```
-
-### 2. Crée un environnement virtuel
-
-```bash
-python -m venv venv
-# Windows
-venv\Scripts\activate
-# Mac/Linux
-source venv/bin/activate
-```
-
-### 3. Installe les dépendances
-
-```bash
-pip install -r requirements.txt
-```
-
-### 4. Configure la base de données
-
-Crée un projet sur [Supabase](https://supabase.com) et exécute le fichier `script-creation-table-inventaire.sql` dans l'éditeur SQL de Supabase.
-
-### 5. Configure les secrets
-
-Crée le fichier `.streamlit/secrets.toml` (ne jamais commiter ce fichier !) :
-
-```toml
-[database]
-host     = "db.XXXX.supabase.co"
-dbname   = "postgres"
-user     = "postgres"
-password = "TON_MOT_DE_PASSE"
-port     = "5432"
-```
-
-### 6. Modification de votre configuration 
-
-dans le fichier config_custom.py 
-
-pseudo = "******"  <-- mettre votre pseudo.
-
-dans le fichier config.toml 
-
-[theme]
-
-primaryColor = "#00FFC8"          	# Un vert néon 
-backgroundColor = "#0E1117"       	# Un gris très sombre
-secondaryBackgroundColor = "#161B22" 	# Gris foncé pour les widgets
-textColor = "#E6EDF3"             	# Blanc cassé pour la lecture
-font = "sans serif"			# Police d'écriture
-
-
-### 7. Lance l'application
-
-```bash
-streamlit run app.py
-```
-
----
-
-## ☁️ Déploiement sur Streamlit Cloud
-
-1. Fork ce repo sur ton GitHub
-2. Va sur [share.streamlit.io](https://share.streamlit.io)
-3. Connecte ton GitHub et sélectionne le repo
-4. Dans **Advanced settings → Secrets**, colle le contenu de ton `secrets.toml`
-5. Clique **Deploy**
-
----
-
-## 📡 Fonctionnalité NFC [En cours de finalisation]
-
-La lecture NFC utilise la **Web NFC API** du navigateur.
-
-**Compatibilité :** Android + Chrome uniquement (pas iOS, pas desktop)
-
-**Fonctionnement :**
-1. Colle un tag NFC 215 sur chaque bobine
-2. Enregistre l'UID du tag dans le champ NFC lors de l'ajout de la bobine
-3. Sur mobile, va dans **Scanner NFC** → clique le bouton → approche le tag
-4. L'appli affiche automatiquement les infos de la bobine et permet d'enregistrer une consommation
-
----
-
-## 📁 Structure du projet
+## Architecture
 
 ```
 kaki3d-Stock-Manager/
-├── app.py                          # Interface Streamlit
-├── action.py                       # Fonctions BDD (CRUD)
-├── database.py                     # Connexion PostgreSQL
-├── config_custom.py                # Configuration personnalisée
-├── requirements.txt                # Dépendances Python
-├── static/
-│   └── nfc.html                    # Page NFC (hors iframe)
-├── asset/
-│   └── new_logo_kaki3d.png         # Logo
-├── .streamlit/
-│   ├── config.toml                 # Configuration Streamlit
-│   └── secrets.toml                # 🔒 Ne pas commiter !
-└── script-creation-table-inventaire.sql  # Schéma BDD
+|- back_symfony/     # Backend API Symfony
+|- front_flutter/    # Front mobile Flutter (NFC)
+|- mobile_app/       # Variante Flutter (historique)
+`- legacy_streamlit/ # Ancienne app Streamlit + scripts SQL/assets
 ```
 
----
+## Prerequis
 
-## 🗄️ Schéma de base de données
+- PHP 8.0+
+- Composer
+- Flutter 3.38+
+- PostgreSQL (ou Supabase PostgreSQL)
 
+## 1) Lancer le backend Symfony
+
+Depuis `back_symfony`, configurer les variables d'environnement suivantes:
+
+- `DB_HOST`
+- `DB_PORT`
+- `DB_NAME`
+- `DB_USER`
+- `DB_PASSWORD`
+- `DB_SSLMODE` (ex: `require` pour Supabase, `prefer` en local)
+- `CORS_ALLOWED_ORIGIN` (ex: `*` en dev, ou URL precise du front)
+
+Installation et lancement:
+
+```bash
+cd back_symfony
+composer install
+php -S 127.0.0.1:8000 -t public
 ```
-materials ──┐
-            ├── spools ──── usage_logs
-marques   ──┘
+
+Verification rapide:
+
+```bash
+curl http://127.0.0.1:8000/api/health
 ```
 
-- **materials** : types de filament (PLA, PETG, ABS...)
-- **marques** : fabricants (Prusament, Esun...)
-- **spools** : bobines avec paramètres slicer
-- **usage_logs** : historique des consommations
+## 2) Lancer le front Flutter
 
----
+Depuis `front_flutter`:
 
-## 📜 Licence
+```bash
+cd front_flutter
+flutter pub get
+flutter run --dart-define=API_BASE_URL=http://127.0.0.1:8000
+```
 
-MIT — voir [LICENSE](LICENSE)
+Pour emulateur Android, utiliser en general:
 
----
+```bash
+flutter run --dart-define=API_BASE_URL=http://10.0.2.2:8000
+```
 
-Fait avec ❤️ par [Kakicrypto](https://github.com/Kakicrypto) dans le cadre d'une reconversion en Data/IA 🚀
+## Endpoints principaux
+
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `POST /api/auth/logout`
+- `POST /api/auth/change-password`
+- `GET /api/spools`
+- `POST /api/spools`
+- `PUT /api/spools/{id}`
+- `DELETE /api/spools/{id}`
+- `GET /api/spools/nfc/{uid}`
+- `POST /api/usage-logs`
+- `GET /api/stats/materials`
+- `GET /api/stats/projects`
+- `GET /api/stats/monthly`
+
+## Legacy Streamlit
+
+L'application Streamlit d'origine reste disponible pour reference/migration:
+
+```bash
+streamlit run legacy_streamlit/app.py
+```
+
+Elle n'est plus la cible principale du projet.

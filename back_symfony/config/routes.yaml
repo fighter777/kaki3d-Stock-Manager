@@ -8,6 +8,21 @@ api_inventory:
     controller: App\Controller\ApiController::inventory
     methods: [GET]
 
+api_inventory_aggregated:
+    path: /api/spools/aggregated
+    controller: App\Controller\ApiController::inventoryAggregated
+    methods: [GET]
+
+api_brands:
+    path: /api/brands
+    controller: App\Controller\ApiController::brands
+    methods: [GET]
+
+api_materials:
+    path: /api/materials
+    controller: App\Controller\ApiController::materials
+    methods: [GET]
+
 api_spool_by_nfc:
     path: /api/spools/nfc/{uid}
     controller: App\Controller\ApiController::spoolByNfc
