@@ -8,6 +8,7 @@ API REST pour `kaki3d-Stock-Manager` (lookup NFC + inventaire + consommation).
 - `POST /api/auth/register` (public)
 - `POST /api/auth/login` (public)
 - `POST /api/auth/logout` (auth token)
+- `POST /api/auth/change-password` (auth token)
 - `GET /api/spools` (auth token)
 - `GET /api/spools/nfc/{uid}` (auth token)
 - `POST /api/usage-logs` (auth token)
@@ -22,6 +23,7 @@ Authorization: Bearer <API_TOKEN>
 
 Un token utilisateur est retourné par `register` / `login` et peut être utilisé dans le même header.
 `logout` révoque ce token.
+`change-password` met à jour le mot de passe, révoque les sessions existantes et renvoie un nouveau token.
 
 ## Configuration
 

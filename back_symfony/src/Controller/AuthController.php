@@ -94,4 +94,45 @@ class AuthController
 
         return new JsonResponse(['status' => 'logged_out']);
     }
+
+    public function changePassword(Request $request, AuthRepository $authRepository): JsonResponse
+    {
+        $authRepository->initSchema();
+        $token = $this->extractBearerToken($request);
+        if ($token === null) {
+            return new JsonResponse(['message' => 'Authorization Bearer token requis'], 401);
+        }
+
+        $userId = $authRepository->getUserIdByToken($token);
+        if ($userId === null) {
+            return new JsonResponse(['message' => 'Token invalide'], 401);
+        }
+
+        try {
+            $payload = $request->toArray();
+        } catch (\Throwable) {
+            return new JsonResponse(['message' => 'Invalid JSON payload'], 400);
+        }
+
+        $currentPassword = (string) ($payload['current_password'] ?? '');
+        $newPassword = (string) ($payload['new_password'] ?? '');
+
+        if (strlen($newPassword) < 8) {
+            return new JsonResponse(['message' => 'Nouveau mot de passe trop court (8 caracteres minimum)'], 400);
+        }
+
+        if (!$authRepository->verifyUserPassword($userId, $currentPassword)) {
+            return new JsonResponse(['message' => 'Mot de passe actuel invalide'], 401);
+        }
+
+        $authRepository->updatePassword($userId, $newPassword);
+        $authRepository->revokeAllTokensForUser($userId);
+        $newToken = $authRepository->issueToken($userId);
+
+        return new JsonResponse([
+            'status' => 'password_changed',
+            'access_token' => $newToken,
+            'token_type' => 'Bearer',
+        ]);
+    }
 }

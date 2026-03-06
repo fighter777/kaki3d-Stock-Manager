@@ -127,6 +127,95 @@ class _NfcStockPageState extends State<NfcStockPage> {
     }
   }
 
+  Future<void> _changePasswordDialog() async {
+    if (_authToken == null || _isAuthLoading) {
+      return;
+    }
+
+    final currentCtrl = TextEditingController();
+    final newCtrl = TextEditingController();
+    String? localError;
+
+    await showDialog<void>(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setLocalState) {
+            return AlertDialog(
+              title: const Text('Modifier le mot de passe'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: currentCtrl,
+                    obscureText: true,
+                    decoration: const InputDecoration(labelText: 'Mot de passe actuel'),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: newCtrl,
+                    obscureText: true,
+                    decoration: const InputDecoration(labelText: 'Nouveau mot de passe'),
+                  ),
+                  if (localError != null) ...[
+                    const SizedBox(height: 8),
+                    Text(localError!, style: const TextStyle(color: Colors.red)),
+                  ],
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Annuler'),
+                ),
+                FilledButton(
+                  onPressed: () async {
+                    final currentPassword = currentCtrl.text;
+                    final newPassword = newCtrl.text;
+                    if (newPassword.length < 8) {
+                      setLocalState(() {
+                        localError = 'Nouveau mot de passe >= 8 caracteres';
+                      });
+                      return;
+                    }
+
+                    try {
+                      final newToken = await _apiClient.changePassword(
+                        token: _authToken!,
+                        currentPassword: currentPassword,
+                        newPassword: newPassword,
+                      );
+                      if (!mounted) {
+                        return;
+                      }
+                      setState(() {
+                        _authToken = newToken;
+                        _status = 'Mot de passe modifie.';
+                        _error = null;
+                      });
+                      if (!context.mounted) {
+                        return;
+                      }
+                      Navigator.of(context).pop();
+                    } catch (e) {
+                      setLocalState(() {
+                        localError = 'Erreur: $e';
+                      });
+                    }
+                  },
+                  child: const Text('Valider'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    currentCtrl.dispose();
+    newCtrl.dispose();
+  }
+
   Future<void> _logout() async {
     if (_authToken == null || _isAuthLoading) {
       return;
@@ -398,9 +487,22 @@ class _NfcStockPageState extends State<NfcStockPage> {
               ],
             ),
             const SizedBox(height: 8),
-            OutlinedButton(
-              onPressed: _authToken != null && !_isAuthLoading ? _logout : null,
-              child: const Text('Logout'),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: _authToken != null && !_isAuthLoading ? _changePasswordDialog : null,
+                    child: const Text('Changer mot de passe'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: _authToken != null && !_isAuthLoading ? _logout : null,
+                    child: const Text('Logout'),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -511,6 +613,28 @@ class ApiClient {
     if (response.statusCode != 200) {
       throw Exception('HTTP ${response.statusCode}: ${response.body}');
     }
+  }
+
+  Future<String> changePassword({
+    required String token,
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final response = await _client.post(
+      _uri('/api/auth/change-password'),
+      headers: _headersWithToken(token),
+      body: jsonEncode({
+        'current_password': currentPassword,
+        'new_password': newPassword,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+      return decoded['access_token'] as String;
+    }
+
+    throw Exception('HTTP ${response.statusCode}: ${response.body}');
   }
 
   Future<String> _auth(String path, String email, String password) async {

@@ -109,4 +109,57 @@ class AuthRepository
         );
         $stmt->execute(['token_hash' => $tokenHash]);
     }
+
+    public function getUserIdByToken(string $plainToken): ?int
+    {
+        $tokenHash = hash('sha256', $plainToken);
+        $pdo = $this->connectionFactory->create();
+        $stmt = $pdo->prepare(
+            'SELECT id_user
+             FROM public.api_tokens
+             WHERE token_hash = :token_hash
+               AND revoked_at IS NULL
+             LIMIT 1'
+        );
+        $stmt->execute(['token_hash' => $tokenHash]);
+        $userId = $stmt->fetchColumn();
+
+        return $userId !== false ? (int) $userId : null;
+    }
+
+    public function verifyUserPassword(int $userId, string $password): bool
+    {
+        $pdo = $this->connectionFactory->create();
+        $stmt = $pdo->prepare('SELECT password_hash FROM public.app_users WHERE id_user = :id_user LIMIT 1');
+        $stmt->execute(['id_user' => $userId]);
+        $hash = $stmt->fetchColumn();
+
+        return $hash !== false && password_verify($password, (string) $hash);
+    }
+
+    public function updatePassword(int $userId, string $newPassword): void
+    {
+        $pdo = $this->connectionFactory->create();
+        $stmt = $pdo->prepare(
+            'UPDATE public.app_users
+             SET password_hash = :password_hash
+             WHERE id_user = :id_user'
+        );
+        $stmt->execute([
+            'password_hash' => password_hash($newPassword, PASSWORD_BCRYPT),
+            'id_user' => $userId,
+        ]);
+    }
+
+    public function revokeAllTokensForUser(int $userId): void
+    {
+        $pdo = $this->connectionFactory->create();
+        $stmt = $pdo->prepare(
+            'UPDATE public.api_tokens
+             SET revoked_at = NOW()
+             WHERE id_user = :id_user
+               AND revoked_at IS NULL'
+        );
+        $stmt->execute(['id_user' => $userId]);
+    }
 }

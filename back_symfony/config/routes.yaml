@@ -32,3 +32,8 @@ api_auth_logout:
     path: /api/auth/logout
     controller: App\Controller\AuthController::logout
     methods: [POST]
+
+api_auth_change_password:
+    path: /api/auth/change-password
+    controller: App\Controller\AuthController::changePassword
+    methods: [POST]
