@@ -11,10 +11,6 @@ const _apiBaseUrl = String.fromEnvironment(
   'API_BASE_URL',
   defaultValue: 'http://127.0.0.1:8000',
 );
-const _bootstrapApiToken = String.fromEnvironment(
-  'API_TOKEN',
-  defaultValue: 'change_me_secure_token',
-);
 
 void main() {
   runApp(const StockManagerApp());
@@ -61,9 +57,6 @@ class _NfcStockPageState extends State<NfcStockPage> {
   @override
   void initState() {
     super.initState();
-    if (_bootstrapApiToken != 'change_me_secure_token') {
-      _authToken = _bootstrapApiToken;
-    }
     _checkNfc();
   }
 

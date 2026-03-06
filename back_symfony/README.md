@@ -20,8 +20,6 @@ Utilise un header:
 Authorization: Bearer <API_TOKEN>
 ```
 
-`API_TOKEN` est configuré dans `.env` / `.env.local`.
-
 Un token utilisateur est retourné par `register` / `login` et peut être utilisé dans le même header.
 `logout` révoque ce token.
 
@@ -35,7 +33,6 @@ Variables à ajuster:
 - `DB_USER`
 - `DB_PASSWORD`
 - `DB_SSLMODE`
-- `API_TOKEN`
 - `CORS_ALLOWED_ORIGIN`
 
 ## Lancer en local

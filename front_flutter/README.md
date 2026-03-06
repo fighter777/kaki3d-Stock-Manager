@@ -17,22 +17,19 @@ App mobile Flutter pour scanner un tag NFC de bobine et enregistrer la consommat
 Passer les valeurs au run/build via `--dart-define`:
 
 - `API_BASE_URL`
-- `API_TOKEN` (optionnel: token bootstrap)
 
 Exemple Android (émulateur):
 
 ```bash
 flutter run \
-  --dart-define=API_BASE_URL=http://10.0.2.2:8000 \
-  --dart-define=API_TOKEN=change_me_secure_token
+  --dart-define=API_BASE_URL=http://10.0.2.2:8000
 ```
 
 Exemple appareil réel:
 
 ```bash
 flutter run \
-  --dart-define=API_BASE_URL=http://<IP_PC_LAN>:8000 \
-  --dart-define=API_TOKEN=change_me_secure_token
+  --dart-define=API_BASE_URL=http://<IP_PC_LAN>:8000
 ```
 
 ## Permissions

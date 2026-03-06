@@ -10,7 +10,6 @@ parameters:
     app.db_user: '%env(DB_USER)%'
     app.db_password: '%env(DB_PASSWORD)%'
     app.db_sslmode: '%env(DB_SSLMODE)%'
-    app.api_token: '%env(API_TOKEN)%'
     app.cors_allowed_origin: '%env(CORS_ALLOWED_ORIGIN)%'
 
 services:
@@ -36,10 +35,6 @@ services:
             $user: '%app.db_user%'
             $password: '%app.db_password%'
             $sslMode: '%app.db_sslmode%'
-
-    App\EventSubscriber\ApiTokenSubscriber:
-        arguments:
-            $apiToken: '%app.api_token%'
 
     App\EventSubscriber\CorsSubscriber:
         arguments:

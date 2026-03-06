@@ -11,12 +11,10 @@ use Symfony\Component\HttpKernel\KernelEvents;
 class ApiTokenSubscriber implements EventSubscriberInterface
 {
     private AuthRepository $authRepository;
-    private string $apiToken;
 
-    public function __construct(AuthRepository $authRepository, string $apiToken)
+    public function __construct(AuthRepository $authRepository)
     {
         $this->authRepository = $authRepository;
-        $this->apiToken = $apiToken;
     }
 
     public static function getSubscribedEvents(): array
@@ -52,11 +50,6 @@ class ApiTokenSubscriber implements EventSubscriberInterface
         $token = trim(substr($authorization, 7));
         if ($token === '') {
             $event->setResponse(new JsonResponse(['message' => 'Unauthorized'], 401));
-            return;
-        }
-
-        // Temporary bootstrap: the static token from env remains accepted.
-        if ($token === $this->apiToken) {
             return;
         }
 
