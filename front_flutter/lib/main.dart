@@ -58,6 +58,7 @@ class _NfcStockPageState extends State<NfcStockPage> {
   bool _isInventoryLoading = false;
   bool _isSpoolCrudLoading = false;
   bool _isStatsLoading = false;
+  int _selectedIndex = 0;
   String _status = 'Verification NFC...';
   String? _authToken;
   String? _lastUid;
@@ -660,8 +661,16 @@ class _NfcStockPageState extends State<NfcStockPage> {
 
   @override
   Widget build(BuildContext context) {
+    final titles = [
+      'Kaki3D - Scan NFC',
+      'Kaki3D - Inventaire',
+      'Kaki3D - Ajout Bobine',
+      'Kaki3D - Modifier Bobine',
+      'Kaki3D - Stats',
+    ];
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Kaki3D - Scanner NFC')),
+      appBar: AppBar(title: Text(titles[_selectedIndex])),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: ListView(
@@ -676,22 +685,66 @@ class _NfcStockPageState extends State<NfcStockPage> {
             const SizedBox(height: 12),
             _buildAuthCard(),
             const SizedBox(height: 12),
-            FilledButton(
-              onPressed: _nfcAvailable && !_isScanning && _authToken != null ? _startScan : null,
-              child: const Text('Scanner une bobine'),
-            ),
-            const SizedBox(height: 12),
-            if (_spool != null) _buildSpoolCard(context),
-            const SizedBox(height: 12),
-            _buildSpoolCrudCard(),
-            const SizedBox(height: 12),
-            _buildInventoryCard(),
-            const SizedBox(height: 12),
-            _buildStatsCard(),
+            if (_authToken == null)
+              const Card(
+                child: Padding(
+                  padding: EdgeInsets.all(12),
+                  child: Text('Connecte-toi pour acceder aux ecrans inventaire/ajout/modif/stats.'),
+                ),
+              )
+            else
+              _buildActiveScreen(context),
           ],
         ),
       ),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _selectedIndex,
+        onDestinationSelected: (index) {
+          setState(() {
+            _selectedIndex = index;
+          });
+        },
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.nfc),
+            label: 'Scan',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.inventory_2_outlined),
+            label: 'Inventaire',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.add_box_outlined),
+            label: 'Ajout',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.edit_outlined),
+            label: 'Modif',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.bar_chart_outlined),
+            label: 'Stats',
+          ),
+        ],
+      ),
     );
+  }
+
+  Widget _buildActiveScreen(BuildContext context) {
+    switch (_selectedIndex) {
+      case 0:
+        return _buildScanAndUsageCard(context);
+      case 1:
+        return _buildInventoryCard();
+      case 2:
+        return _buildSpoolCreateCard();
+      case 3:
+        return _buildSpoolEditCard();
+      case 4:
+        return _buildStatsCard();
+      default:
+        return const SizedBox.shrink();
+    }
   }
 
   Widget _buildAuthCard() {
@@ -793,20 +846,37 @@ class _NfcStockPageState extends State<NfcStockPage> {
     );
   }
 
-  Widget _buildSpoolCrudCard() {
+  Widget _buildScanAndUsageCard(BuildContext context) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text('Gestion Bobines (Create/Update/Delete)'),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _spoolIdController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'ID spool (update/delete)'),
+            FilledButton(
+              onPressed: _nfcAvailable && !_isScanning && _authToken != null ? _startScan : null,
+              child: const Text('Scanner une bobine'),
             ),
+            const SizedBox(height: 12),
+            if (_spool != null)
+              _buildSpoolCard(context)
+            else
+              const Text('Aucune bobine lue. Lance un scan NFC.'),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSpoolCreateCard() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text('Ajout de bobine'),
+            const SizedBox(height: 8),
             TextField(
               controller: _spoolNfcController,
               decoration: const InputDecoration(labelText: 'NFC ID'),
@@ -852,12 +922,8 @@ class _NfcStockPageState extends State<NfcStockPage> {
                   child: const Text('Create'),
                 ),
                 OutlinedButton(
-                  onPressed: _authToken != null && !_isSpoolCrudLoading ? _updateSpool : null,
-                  child: const Text('Update'),
-                ),
-                OutlinedButton(
-                  onPressed: _authToken != null && !_isSpoolCrudLoading ? _deleteSpool : null,
-                  child: const Text('Delete'),
+                  onPressed: _isSpoolCrudLoading ? null : _clearSpoolFields,
+                  child: const Text('Vider'),
                 ),
               ],
             ),
@@ -865,6 +931,90 @@ class _NfcStockPageState extends State<NfcStockPage> {
         ),
       ),
     );
+  }
+
+  Widget _buildSpoolEditCard() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text('Modifier / supprimer bobine'),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _spoolIdController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'ID spool (obligatoire)'),
+            ),
+            TextField(
+              controller: _spoolNfcController,
+              decoration: const InputDecoration(labelText: 'NFC ID (optionnel)'),
+            ),
+            TextField(
+              controller: _spoolBrandController,
+              decoration: const InputDecoration(labelText: 'Marque (optionnel)'),
+            ),
+            TextField(
+              controller: _spoolMaterialController,
+              decoration: const InputDecoration(labelText: 'Matiere (optionnel)'),
+            ),
+            TextField(
+              controller: _spoolColorController,
+              decoration: const InputDecoration(labelText: 'Couleur (optionnel)'),
+            ),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _spoolInitialController,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(labelText: 'Poids initial (opt.)'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    controller: _spoolEmptyController,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(labelText: 'Poids bobine vide (opt.)'),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                OutlinedButton(
+                  onPressed: _authToken != null && !_isSpoolCrudLoading ? _updateSpool : null,
+                  child: const Text('Update'),
+                ),
+                OutlinedButton(
+                  onPressed: _authToken != null && !_isSpoolCrudLoading ? _deleteSpool : null,
+                  child: const Text('Delete'),
+                ),
+                OutlinedButton(
+                  onPressed: _isSpoolCrudLoading ? null : _clearSpoolFields,
+                  child: const Text('Vider'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _clearSpoolFields() {
+    _spoolIdController.clear();
+    _spoolNfcController.clear();
+    _spoolBrandController.clear();
+    _spoolMaterialController.clear();
+    _spoolColorController.clear();
+    _spoolInitialController.text = '1000';
+    _spoolEmptyController.text = '200';
   }
 
   Widget _buildInventoryCard() {
