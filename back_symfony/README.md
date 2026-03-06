@@ -10,8 +10,14 @@ API REST pour `kaki3d-Stock-Manager` (lookup NFC + inventaire + consommation).
 - `POST /api/auth/logout` (auth token)
 - `POST /api/auth/change-password` (auth token)
 - `GET /api/spools` (auth token)
+- `POST /api/spools` (auth token)
+- `PUT /api/spools/{id}` (auth token)
+- `DELETE /api/spools/{id}` (auth token)
 - `GET /api/spools/nfc/{uid}` (auth token)
 - `POST /api/usage-logs` (auth token)
+- `GET /api/stats/materials` (auth token)
+- `GET /api/stats/projects` (auth token)
+- `GET /api/stats/monthly` (auth token)
 
 ## Auth
 

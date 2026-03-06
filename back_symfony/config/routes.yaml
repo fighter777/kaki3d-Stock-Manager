@@ -18,6 +18,36 @@ api_usage_create:
     controller: App\Controller\ApiController::createUsage
     methods: [POST]
 
+api_spool_create:
+    path: /api/spools
+    controller: App\Controller\ApiController::createSpool
+    methods: [POST]
+
+api_spool_update:
+    path: /api/spools/{id}
+    controller: App\Controller\ApiController::updateSpool
+    methods: [PUT, PATCH]
+
+api_spool_delete:
+    path: /api/spools/{id}
+    controller: App\Controller\ApiController::deleteSpool
+    methods: [DELETE]
+
+api_stats_materials:
+    path: /api/stats/materials
+    controller: App\Controller\ApiController::statsByMaterial
+    methods: [GET]
+
+api_stats_projects:
+    path: /api/stats/projects
+    controller: App\Controller\ApiController::statsByProject
+    methods: [GET]
+
+api_stats_monthly:
+    path: /api/stats/monthly
+    controller: App\Controller\ApiController::statsByMonth
+    methods: [GET]
+
 api_auth_register:
     path: /api/auth/register
     controller: App\Controller\AuthController::register

@@ -12,6 +12,8 @@ App mobile Flutter pour scanner un tag NFC de bobine et enregistrer la consommat
 - Appel API: `GET /api/spools/nfc/{uid}`
 - Affichage bobine trouvée
 - Enregistrement consommation: `POST /api/usage-logs`
+- Gestion bobines: create / update / delete
+- Stats: matières / projets / mensuel
 
 ## Configuration API
 

@@ -43,15 +43,29 @@ class _NfcStockPageState extends State<NfcStockPage> {
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _projectController = TextEditingController();
   final TextEditingController _weightController = TextEditingController(text: '10');
+  final TextEditingController _spoolIdController = TextEditingController();
+  final TextEditingController _spoolNfcController = TextEditingController();
+  final TextEditingController _spoolBrandController = TextEditingController();
+  final TextEditingController _spoolMaterialController = TextEditingController();
+  final TextEditingController _spoolColorController = TextEditingController();
+  final TextEditingController _spoolInitialController = TextEditingController(text: '1000');
+  final TextEditingController _spoolEmptyController = TextEditingController(text: '200');
 
   bool _nfcAvailable = false;
   bool _isAuthLoading = false;
   bool _isScanning = false;
   bool _isSaving = false;
+  bool _isInventoryLoading = false;
+  bool _isSpoolCrudLoading = false;
+  bool _isStatsLoading = false;
   String _status = 'Verification NFC...';
   String? _authToken;
   String? _lastUid;
   Spool? _spool;
+  List<Spool> _inventory = const [];
+  List<Map<String, dynamic>> _statsMaterials = const [];
+  List<Map<String, dynamic>> _statsProjects = const [];
+  List<Map<String, dynamic>> _statsMonthly = const [];
   String? _error;
 
   @override
@@ -66,6 +80,13 @@ class _NfcStockPageState extends State<NfcStockPage> {
     _passwordController.dispose();
     _projectController.dispose();
     _weightController.dispose();
+    _spoolIdController.dispose();
+    _spoolNfcController.dispose();
+    _spoolBrandController.dispose();
+    _spoolMaterialController.dispose();
+    _spoolColorController.dispose();
+    _spoolInitialController.dispose();
+    _spoolEmptyController.dispose();
     super.dispose();
   }
 
@@ -384,6 +405,225 @@ class _NfcStockPageState extends State<NfcStockPage> {
     }
   }
 
+  Future<void> _loadInventory() async {
+    if (_authToken == null || _isInventoryLoading) {
+      return;
+    }
+    setState(() {
+      _isInventoryLoading = true;
+      _error = null;
+    });
+    try {
+      final data = await _apiClient.getInventory(_authToken!);
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _inventory = data;
+      });
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _error = 'Erreur inventaire: $e';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isInventoryLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _createSpool() async {
+    if (_authToken == null || _isSpoolCrudLoading) {
+      return;
+    }
+    final brand = _spoolBrandController.text.trim();
+    final material = _spoolMaterialController.text.trim();
+    final color = _spoolColorController.text.trim();
+    final initialWeight = double.tryParse(_spoolInitialController.text.trim());
+    final emptyWeight = double.tryParse(_spoolEmptyController.text.trim());
+    if (brand.isEmpty || material.isEmpty || color.isEmpty || initialWeight == null) {
+      setState(() {
+        _error = 'Champs requis spool: marque, matiere, couleur, poids initial.';
+      });
+      return;
+    }
+
+    setState(() {
+      _isSpoolCrudLoading = true;
+      _error = null;
+    });
+
+    try {
+      final created = await _apiClient.createSpool(
+        token: _authToken!,
+        payload: {
+          'nfc_id': _spoolNfcController.text.trim(),
+          'brand_name': brand,
+          'material_name': material,
+          'color_name': color,
+          'initial_weight': initialWeight,
+          'empty_spool_weight': emptyWeight ?? 200,
+        },
+      );
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _status = 'Bobine creee (id ${created.id}).';
+      });
+      await _loadInventory();
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _error = 'Erreur creation spool: $e';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSpoolCrudLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _updateSpool() async {
+    if (_authToken == null || _isSpoolCrudLoading) {
+      return;
+    }
+    final id = int.tryParse(_spoolIdController.text.trim());
+    if (id == null || id <= 0) {
+      setState(() {
+        _error = 'ID spool invalide pour update.';
+      });
+      return;
+    }
+
+    setState(() {
+      _isSpoolCrudLoading = true;
+      _error = null;
+    });
+    try {
+      await _apiClient.updateSpool(
+        token: _authToken!,
+        id: id,
+        payload: {
+          if (_spoolNfcController.text.trim().isNotEmpty) 'nfc_id': _spoolNfcController.text.trim(),
+          if (_spoolBrandController.text.trim().isNotEmpty) 'brand_name': _spoolBrandController.text.trim(),
+          if (_spoolMaterialController.text.trim().isNotEmpty) 'material_name': _spoolMaterialController.text.trim(),
+          if (_spoolColorController.text.trim().isNotEmpty) 'color_name': _spoolColorController.text.trim(),
+          if (_spoolInitialController.text.trim().isNotEmpty)
+            'initial_weight': double.tryParse(_spoolInitialController.text.trim()),
+          if (_spoolEmptyController.text.trim().isNotEmpty)
+            'empty_spool_weight': double.tryParse(_spoolEmptyController.text.trim()),
+        },
+      );
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _status = 'Bobine mise a jour.';
+      });
+      await _loadInventory();
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _error = 'Erreur update spool: $e';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSpoolCrudLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _deleteSpool() async {
+    if (_authToken == null || _isSpoolCrudLoading) {
+      return;
+    }
+    final id = int.tryParse(_spoolIdController.text.trim());
+    if (id == null || id <= 0) {
+      setState(() {
+        _error = 'ID spool invalide pour delete.';
+      });
+      return;
+    }
+
+    setState(() {
+      _isSpoolCrudLoading = true;
+      _error = null;
+    });
+    try {
+      await _apiClient.deleteSpool(token: _authToken!, id: id);
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _status = 'Bobine supprimee.';
+      });
+      await _loadInventory();
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _error = 'Erreur delete spool: $e';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSpoolCrudLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _loadStats() async {
+    if (_authToken == null || _isStatsLoading) {
+      return;
+    }
+    setState(() {
+      _isStatsLoading = true;
+      _error = null;
+    });
+    try {
+      final materials = await _apiClient.getStatsMaterials(_authToken!);
+      final projects = await _apiClient.getStatsProjects(_authToken!);
+      final monthly = await _apiClient.getStatsMonthly(_authToken!);
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _statsMaterials = materials;
+        _statsProjects = projects;
+        _statsMonthly = monthly;
+      });
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _error = 'Erreur stats: $e';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isStatsLoading = false;
+        });
+      }
+    }
+  }
+
   String? _extractUid(NfcTag tag) {
     if (defaultTargetPlatform == TargetPlatform.android) {
       final androidTag = NfcTagAndroid.from(tag);
@@ -424,8 +664,7 @@ class _NfcStockPageState extends State<NfcStockPage> {
       appBar: AppBar(title: const Text('Kaki3D - Scanner NFC')),
       body: Padding(
         padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+        child: ListView(
           children: [
             Text(_status, style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
@@ -441,8 +680,14 @@ class _NfcStockPageState extends State<NfcStockPage> {
               onPressed: _nfcAvailable && !_isScanning && _authToken != null ? _startScan : null,
               child: const Text('Scanner une bobine'),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             if (_spool != null) _buildSpoolCard(context),
+            const SizedBox(height: 12),
+            _buildSpoolCrudCard(),
+            const SizedBox(height: 12),
+            _buildInventoryCard(),
+            const SizedBox(height: 12),
+            _buildStatsCard(),
           ],
         ),
       ),
@@ -512,38 +757,171 @@ class _NfcStockPageState extends State<NfcStockPage> {
 
   Widget _buildSpoolCard(BuildContext context) {
     final spool = _spool!;
-    return Expanded(
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: ListView(
-            children: [
-              Text(
-                '${spool.brand} - ${spool.color}',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 8),
-              Text('Matiere: ${spool.material}'),
-              Text('Poids restant: ${spool.remainingWeight.toStringAsFixed(1)} g'),
-              Text('Poids initial: ${spool.initialWeight.toStringAsFixed(1)} g'),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _projectController,
-                decoration: const InputDecoration(labelText: 'Nom du projet'),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _weightController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(labelText: 'Poids consomme (g)'),
-              ),
-              const SizedBox(height: 12),
-              FilledButton(
-                onPressed: _isSaving ? null : _saveUsage,
-                child: Text(_isSaving ? 'Enregistrement...' : 'Enregistrer consommation'),
-              ),
-            ],
-          ),
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              '${spool.brand} - ${spool.color}',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 8),
+            Text('Matiere: ${spool.material}'),
+            Text('Poids restant: ${spool.remainingWeight.toStringAsFixed(1)} g'),
+            Text('Poids initial: ${spool.initialWeight.toStringAsFixed(1)} g'),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _projectController,
+              decoration: const InputDecoration(labelText: 'Nom du projet'),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _weightController,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(labelText: 'Poids consomme (g)'),
+            ),
+            const SizedBox(height: 12),
+            FilledButton(
+              onPressed: _isSaving ? null : _saveUsage,
+              child: Text(_isSaving ? 'Enregistrement...' : 'Enregistrer consommation'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSpoolCrudCard() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text('Gestion Bobines (Create/Update/Delete)'),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _spoolIdController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'ID spool (update/delete)'),
+            ),
+            TextField(
+              controller: _spoolNfcController,
+              decoration: const InputDecoration(labelText: 'NFC ID'),
+            ),
+            TextField(
+              controller: _spoolBrandController,
+              decoration: const InputDecoration(labelText: 'Marque'),
+            ),
+            TextField(
+              controller: _spoolMaterialController,
+              decoration: const InputDecoration(labelText: 'Matiere'),
+            ),
+            TextField(
+              controller: _spoolColorController,
+              decoration: const InputDecoration(labelText: 'Couleur'),
+            ),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _spoolInitialController,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(labelText: 'Poids initial'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    controller: _spoolEmptyController,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(labelText: 'Poids bobine vide'),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                FilledButton(
+                  onPressed: _authToken != null && !_isSpoolCrudLoading ? _createSpool : null,
+                  child: const Text('Create'),
+                ),
+                OutlinedButton(
+                  onPressed: _authToken != null && !_isSpoolCrudLoading ? _updateSpool : null,
+                  child: const Text('Update'),
+                ),
+                OutlinedButton(
+                  onPressed: _authToken != null && !_isSpoolCrudLoading ? _deleteSpool : null,
+                  child: const Text('Delete'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInventoryCard() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                const Expanded(child: Text('Inventaire')),
+                TextButton(
+                  onPressed: _authToken != null && !_isInventoryLoading ? _loadInventory : null,
+                  child: const Text('Refresh'),
+                ),
+              ],
+            ),
+            if (_inventory.isEmpty)
+              const Text('Aucune donnee inventaire.')
+            else
+              ..._inventory.take(20).map(
+                    (e) => Text(
+                      '#${e.id} ${e.brand} ${e.color} | ${e.material} | ${e.remainingWeight.toStringAsFixed(1)}g',
+                    ),
+                  ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatsCard() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                const Expanded(child: Text('Stats')),
+                TextButton(
+                  onPressed: _authToken != null && !_isStatsLoading ? _loadStats : null,
+                  child: const Text('Refresh'),
+                ),
+              ],
+            ),
+            const Text('Par matiere'),
+            ..._statsMaterials.map((e) => Text('${e['type_materials']}: ${e['poids_total']}')),
+            const SizedBox(height: 8),
+            const Text('Par projet'),
+            ..._statsProjects.map((e) => Text('${e['project_name']}: ${e['total_consomme']}')),
+            const SizedBox(height: 8),
+            const Text('Par mois'),
+            ..._statsMonthly.map((e) => Text('${e['mois']}: ${e['total_consomme']}')),
+          ],
         ),
       ),
     );
@@ -569,7 +947,7 @@ class Spool {
 
   factory Spool.fromJson(Map<String, dynamic> json) {
     return Spool(
-      id: json['id_spools'] as int,
+      id: _asInt(json['id_spools']),
       brand: (json['nom_marques'] ?? '') as String,
       color: (json['color_name'] ?? '') as String,
       material: (json['type_materials'] ?? '') as String,
@@ -583,6 +961,16 @@ class Spool {
       return value.toDouble();
     }
     return double.tryParse(value.toString()) ?? 0;
+  }
+
+  static int _asInt(dynamic value) {
+    if (value is int) {
+      return value;
+    }
+    if (value is num) {
+      return value.toInt();
+    }
+    return int.tryParse(value.toString()) ?? 0;
   }
 }
 
@@ -647,6 +1035,91 @@ class ApiClient {
     if (response.statusCode == 200 || response.statusCode == 201) {
       final decoded = jsonDecode(response.body) as Map<String, dynamic>;
       return decoded['access_token'] as String;
+    }
+
+    throw Exception('HTTP ${response.statusCode}: ${response.body}');
+  }
+
+  Future<List<Spool>> getInventory(String token) async {
+    final response = await _client.get(
+      _uri('/api/spools'),
+      headers: _headersWithToken(token),
+    );
+
+    if (response.statusCode == 200) {
+      final decoded = jsonDecode(response.body) as List<dynamic>;
+      return decoded.map((e) => Spool.fromJson(e as Map<String, dynamic>)).toList();
+    }
+
+    throw Exception('HTTP ${response.statusCode}: ${response.body}');
+  }
+
+  Future<Spool> createSpool({
+    required String token,
+    required Map<String, dynamic> payload,
+  }) async {
+    final response = await _client.post(
+      _uri('/api/spools'),
+      headers: _headersWithToken(token),
+      body: jsonEncode(payload),
+    );
+
+    if (response.statusCode == 201) {
+      final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+      return Spool.fromJson(decoded);
+    }
+
+    throw Exception('HTTP ${response.statusCode}: ${response.body}');
+  }
+
+  Future<void> updateSpool({
+    required String token,
+    required int id,
+    required Map<String, dynamic> payload,
+  }) async {
+    final response = await _client.put(
+      _uri('/api/spools/$id'),
+      headers: _headersWithToken(token),
+      body: jsonEncode(payload),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('HTTP ${response.statusCode}: ${response.body}');
+    }
+  }
+
+  Future<void> deleteSpool({required String token, required int id}) async {
+    final response = await _client.delete(
+      _uri('/api/spools/$id'),
+      headers: _headersWithToken(token),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('HTTP ${response.statusCode}: ${response.body}');
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getStatsMaterials(String token) async {
+    return _getStats('/api/stats/materials', token);
+  }
+
+  Future<List<Map<String, dynamic>>> getStatsProjects(String token) async {
+    return _getStats('/api/stats/projects', token);
+  }
+
+  Future<List<Map<String, dynamic>>> getStatsMonthly(String token) async {
+    return _getStats('/api/stats/monthly', token);
+  }
+
+  Future<List<Map<String, dynamic>>> _getStats(String path, String token) async {
+    final response = await _client.get(
+      _uri(path),
+      headers: _headersWithToken(token),
+    );
+
+    if (response.statusCode == 200) {
+      final decoded = jsonDecode(response.body) as List<dynamic>;
+      return decoded.map((e) => (e as Map<String, dynamic>)).toList();
     }
 
     throw Exception('HTTP ${response.statusCode}: ${response.body}');

@@ -8,6 +8,15 @@ use Symfony\Component\HttpFoundation\Request;
 
 class ApiController
 {
+    private function parseJson(Request $request): array
+    {
+        try {
+            return $request->toArray();
+        } catch (\Throwable) {
+            throw new \InvalidArgumentException('Invalid JSON payload');
+        }
+    }
+
     public function health(): JsonResponse
     {
         return new JsonResponse(['status' => 'ok']);
@@ -31,9 +40,9 @@ class ApiController
     public function createUsage(Request $request, SpoolRepository $spoolRepository): JsonResponse
     {
         try {
-            $payload = $request->toArray();
-        } catch (\Throwable) {
-            return new JsonResponse(['message' => 'Invalid JSON payload'], 400);
+            $payload = $this->parseJson($request);
+        } catch (\InvalidArgumentException $e) {
+            return new JsonResponse(['message' => $e->getMessage()], 400);
         }
 
         $requiredFields = ['weight_used', 'print_date', 'id_spools', 'project_name'];
@@ -56,5 +65,73 @@ class ApiController
 
         return new JsonResponse(['status' => 'created'], 201);
     }
-}
 
+    public function createSpool(Request $request, SpoolRepository $spoolRepository): JsonResponse
+    {
+        try {
+            $payload = $this->parseJson($request);
+        } catch (\InvalidArgumentException $e) {
+            return new JsonResponse(['message' => $e->getMessage()], 400);
+        }
+
+        foreach (['brand_name', 'material_name', 'color_name', 'initial_weight'] as $field) {
+            if (!array_key_exists($field, $payload)) {
+                return new JsonResponse(['message' => sprintf('Missing field: %s', $field)], 400);
+            }
+        }
+
+        try {
+            $spool = $spoolRepository->createSpool($payload);
+        } catch (\Throwable $e) {
+            return new JsonResponse(['message' => 'Create spool failed', 'detail' => $e->getMessage()], 400);
+        }
+
+        return new JsonResponse($spool, 201);
+    }
+
+    public function updateSpool(int $id, Request $request, SpoolRepository $spoolRepository): JsonResponse
+    {
+        try {
+            $payload = $this->parseJson($request);
+        } catch (\InvalidArgumentException $e) {
+            return new JsonResponse(['message' => $e->getMessage()], 400);
+        }
+
+        try {
+            $spool = $spoolRepository->updateSpool($id, $payload);
+        } catch (\Throwable $e) {
+            return new JsonResponse(['message' => 'Update spool failed', 'detail' => $e->getMessage()], 400);
+        }
+
+        if ($spool === null) {
+            return new JsonResponse(['message' => 'Spool not found'], 404);
+        }
+
+        return new JsonResponse($spool);
+    }
+
+    public function deleteSpool(int $id, SpoolRepository $spoolRepository): JsonResponse
+    {
+        $deleted = $spoolRepository->deleteSpool($id);
+        if (!$deleted) {
+            return new JsonResponse(['message' => 'Spool not found'], 404);
+        }
+
+        return new JsonResponse(['status' => 'deleted']);
+    }
+
+    public function statsByMaterial(SpoolRepository $spoolRepository): JsonResponse
+    {
+        return new JsonResponse($spoolRepository->getStatsByMaterial());
+    }
+
+    public function statsByProject(SpoolRepository $spoolRepository): JsonResponse
+    {
+        return new JsonResponse($spoolRepository->getStatsByProject());
+    }
+
+    public function statsByMonth(SpoolRepository $spoolRepository): JsonResponse
+    {
+        return new JsonResponse($spoolRepository->getStatsByMonth());
+    }
+}
