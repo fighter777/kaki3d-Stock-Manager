@@ -1,6 +1,6 @@
 # TODO
 
-- [ ] Ajouter la fonctionnalite "Dupliquer une bobine existante".
+- [x] Ajouter la fonctionnalite "Dupliquer une bobine existante".
   - Objectif: faciliter le re-stock des memes references de bobines.
   - Regles metier:
     - Copier les parametres techniques de la bobine source.
@@ -12,7 +12,7 @@
   - Front propose:
     - Bouton "Dupliquer" depuis la vue inventaire/detail bobine.
 
-- [ ] Au scan NFC, detecter si le tag est deja connu.
+- [x] Au scan NFC, detecter si le tag est deja connu.
   - Flux UX:
     - Si tag connu: ouvrir directement la bobine existante.
     - Si tag inconnu: afficher un prompt "Tag inconnu, creer une nouvelle bobine ?".
@@ -21,3 +21,14 @@
     - Reutiliser `GET /api/spools/nfc/{uid}` (200 si connu, 404 si inconnu).
   - Front:
     - Ajouter le prompt de creation sur statut 404.
+
+- [x] Ajouter une saisie manuelle UID dans l'ecran scan (fallback sans NFC).
+
+- [x] Ajouter des actions guidees depuis l'inventaire:
+  - "Utiliser" (consommation)
+  - "Modifier" (prefill du formulaire)
+  - "Dupliquer"
+
+- [x] Etendre les formulaires front avec tous les parametres techniques bobine.
+
+- [x] Afficher les stats en graphiques (bar charts) dans le front Flutter.

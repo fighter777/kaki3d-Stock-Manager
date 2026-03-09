@@ -2,7 +2,7 @@
 
 App mobile Flutter pour scanner un tag NFC de bobine et enregistrer la consommation via API Symfony.
 
-## Fonctions MVP
+## Fonctions
 
 - Inscription / connexion (`register` / `login`)
 - Logout (`/api/auth/logout`)
@@ -10,10 +10,12 @@ App mobile Flutter pour scanner un tag NFC de bobine et enregistrer la consommat
 - Scan NFC (Android / iOS)
 - Lecture UID du tag
 - Appel API: `GET /api/spools/nfc/{uid}`
-- Affichage bobine trouvée
+- Tag inconnu: proposition de creation bobine avec `nfc_id` pre-rempli
+- Fallback sans NFC: recherche manuelle par UID
 - Enregistrement consommation: `POST /api/usage-logs`
-- Gestion bobines: create / update / delete
-- Stats: matières / projets / mensuel
+- Gestion bobines: create / update / delete / clone
+- Actions guidees inventaire: utiliser / modifier / dupliquer
+- Stats: matieres / projets / mensuel (graphiques)
 
 ## Configuration API
 
@@ -21,14 +23,14 @@ Passer les valeurs au run/build via `--dart-define`:
 
 - `API_BASE_URL`
 
-Exemple Android (émulateur):
+Exemple Android (emulateur):
 
 ```bash
 flutter run \
   --dart-define=API_BASE_URL=http://10.0.2.2:8000
 ```
 
-Exemple appareil réel:
+Exemple appareil reel:
 
 ```bash
 flutter run \
@@ -38,7 +40,7 @@ flutter run \
 ## Permissions
 
 - Android: `android.permission.NFC` + feature NFC dans `AndroidManifest.xml`
-- iOS: `NFCReaderUsageDescription` dans `Info.plist` (+ capability NFC à activer dans Xcode)
+- iOS: `NFCReaderUsageDescription` dans `Info.plist` (+ capability NFC a activer dans Xcode)
 
 ## Validation locale
 
