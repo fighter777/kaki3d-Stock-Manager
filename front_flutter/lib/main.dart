@@ -1,5 +1,7 @@
 import 'dart:convert';
+import 'dart:math' as math;
 
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -1541,15 +1543,107 @@ class _NfcStockPageState extends State<NfcStockPage> {
                 ),
               ],
             ),
-            const Text('Par matiere'),
-            ..._statsMaterials.map((e) => Text('${e['type_materials']}: ${e['poids_total']}')),
             const SizedBox(height: 8),
-            const Text('Par projet'),
-            ..._statsProjects.map((e) => Text('${e['project_name']}: ${e['total_consomme']}')),
+            const Text('Par matiere', style: TextStyle(fontWeight: FontWeight.bold)),
+            _buildBarChartFromRows(
+              context: context,
+              rows: _statsMaterials,
+              labelKey: 'type_materials',
+              valueKey: 'poids_total',
+              emptyText: 'Aucune donnee matiere.',
+            ),
             const SizedBox(height: 8),
-            const Text('Par mois'),
-            ..._statsMonthly.map((e) => Text('${e['mois']}: ${e['total_consomme']}')),
+            const Text('Par projet', style: TextStyle(fontWeight: FontWeight.bold)),
+            _buildBarChartFromRows(
+              context: context,
+              rows: _statsProjects,
+              labelKey: 'project_name',
+              valueKey: 'total_consomme',
+              emptyText: 'Aucune donnee projet.',
+            ),
+            const SizedBox(height: 8),
+            const Text('Par mois', style: TextStyle(fontWeight: FontWeight.bold)),
+            _buildBarChartFromRows(
+              context: context,
+              rows: _statsMonthly,
+              labelKey: 'mois',
+              valueKey: 'total_consomme',
+              emptyText: 'Aucune donnee mensuelle.',
+            ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBarChartFromRows({
+    required BuildContext context,
+    required List<Map<String, dynamic>> rows,
+    required String labelKey,
+    required String valueKey,
+    required String emptyText,
+  }) {
+    if (rows.isEmpty) {
+      return Text(emptyText);
+    }
+
+    final labels = rows.map((e) => (e[labelKey] ?? '').toString()).toList();
+    final values = rows.map((e) => Spool._asDouble(e[valueKey])).toList();
+    final maxY = math.max(1.0, values.reduce(math.max) * 1.2);
+
+    return SizedBox(
+      height: 220,
+      child: BarChart(
+        BarChartData(
+          maxY: maxY,
+          gridData: const FlGridData(show: true, drawVerticalLine: false),
+          borderData: FlBorderData(show: false),
+          barTouchData: BarTouchData(enabled: true),
+          titlesData: FlTitlesData(
+            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            leftTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 36,
+                interval: maxY / 4,
+              ),
+            ),
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 48,
+                getTitlesWidget: (value, meta) {
+                  final idx = value.toInt();
+                  if (idx < 0 || idx >= labels.length) {
+                    return const SizedBox.shrink();
+                  }
+                  final raw = labels[idx];
+                  final short = raw.length > 10 ? '${raw.substring(0, 10)}...' : raw;
+                  return SideTitleWidget(
+                    meta: meta,
+                    child: Transform.rotate(
+                      angle: -0.6,
+                      child: Text(short, style: const TextStyle(fontSize: 10)),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+          barGroups: List.generate(values.length, (index) {
+            return BarChartGroupData(
+              x: index,
+              barRods: [
+                BarChartRodData(
+                  toY: values[index],
+                  width: 16,
+                  borderRadius: BorderRadius.circular(4),
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ],
+            );
+          }),
         ),
       ),
     );
