@@ -43,6 +43,7 @@ class _NfcStockPageState extends State<NfcStockPage> {
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _projectController = TextEditingController();
   final TextEditingController _weightController = TextEditingController(text: '10');
+  final TextEditingController _manualUidController = TextEditingController();
   final TextEditingController _spoolIdController = TextEditingController();
   final TextEditingController _spoolNfcController = TextEditingController();
   final TextEditingController _spoolBrandController = TextEditingController();
@@ -89,6 +90,7 @@ class _NfcStockPageState extends State<NfcStockPage> {
     _passwordController.dispose();
     _projectController.dispose();
     _weightController.dispose();
+    _manualUidController.dispose();
     _spoolIdController.dispose();
     _spoolNfcController.dispose();
     _spoolBrandController.dispose();
@@ -802,6 +804,61 @@ class _NfcStockPageState extends State<NfcStockPage> {
     );
   }
 
+  Future<void> _searchUidManually() async {
+    if (_authToken == null) {
+      return;
+    }
+    final uid = _manualUidController.text.trim().toUpperCase();
+    if (uid.isEmpty) {
+      setState(() {
+        _error = 'Saisis un UID NFC valide.';
+      });
+      return;
+    }
+
+    setState(() {
+      _error = null;
+      _status = 'Recherche bobine pour UID $uid...';
+    });
+
+    try {
+      final spool = await _apiClient.getSpoolByUid(uid, _authToken!);
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _lastUid = uid;
+        _spool = spool;
+        _status = 'Bobine trouvee via UID manuel.';
+        _weightController.text = '10';
+      });
+    } on ApiHttpException catch (e) {
+      if (!mounted) {
+        return;
+      }
+      if (e.statusCode == 404) {
+        setState(() {
+          _lastUid = uid;
+          _spool = null;
+          _status = 'UID inconnu.';
+          _error = null;
+        });
+        await _promptCreateSpoolForUnknownTag(uid);
+        return;
+      }
+      setState(() {
+        _error = 'Erreur recherche UID: $e';
+      });
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _error = 'Erreur recherche UID: $e';
+      });
+    }
+  }
+
   Widget _buildActiveScreen(BuildContext context) {
     switch (_selectedIndex) {
       case 0:
@@ -1073,6 +1130,22 @@ class _NfcStockPageState extends State<NfcStockPage> {
             FilledButton(
               onPressed: _nfcAvailable && !_isScanning && _authToken != null ? _startScan : null,
               child: const Text('Scanner une bobine'),
+            ),
+            const SizedBox(height: 8),
+            if (!_nfcAvailable)
+              const Text('NFC indisponible: utilise la saisie UID manuelle ci-dessous.'),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _manualUidController,
+              decoration: const InputDecoration(
+                labelText: 'UID manuel',
+                hintText: 'Ex: 04:AB:12:CD:EF:00:01',
+              ),
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton(
+              onPressed: _authToken != null ? _searchUidManually : null,
+              child: const Text('Rechercher par UID'),
             ),
             const SizedBox(height: 12),
             if (_spool != null)
