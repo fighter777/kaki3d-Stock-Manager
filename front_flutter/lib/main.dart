@@ -50,6 +50,13 @@ class _NfcStockPageState extends State<NfcStockPage> {
   final TextEditingController _spoolColorController = TextEditingController();
   final TextEditingController _spoolInitialController = TextEditingController(text: '1000');
   final TextEditingController _spoolEmptyController = TextEditingController(text: '200');
+  final TextEditingController _spoolDiameterController = TextEditingController(text: '1.75');
+  final TextEditingController _spoolTempImpController = TextEditingController(text: '200');
+  final TextEditingController _spoolTempBedController = TextEditingController(text: '50');
+  final TextEditingController _spoolDebitController = TextEditingController(text: '100');
+  final TextEditingController _spoolPressureAdvanceController = TextEditingController(text: '0');
+  final TextEditingController _spoolVitVolMaxController = TextEditingController(text: '15');
+  final TextEditingController _spoolVitImpController = TextEditingController(text: '60');
 
   bool _nfcAvailable = false;
   bool _isAuthLoading = false;
@@ -89,6 +96,13 @@ class _NfcStockPageState extends State<NfcStockPage> {
     _spoolColorController.dispose();
     _spoolInitialController.dispose();
     _spoolEmptyController.dispose();
+    _spoolDiameterController.dispose();
+    _spoolTempImpController.dispose();
+    _spoolTempBedController.dispose();
+    _spoolDebitController.dispose();
+    _spoolPressureAdvanceController.dispose();
+    _spoolVitVolMaxController.dispose();
+    _spoolVitImpController.dispose();
     super.dispose();
   }
 
@@ -474,6 +488,13 @@ class _NfcStockPageState extends State<NfcStockPage> {
     final color = _spoolColorController.text.trim();
     final initialWeight = double.tryParse(_spoolInitialController.text.trim());
     final emptyWeight = double.tryParse(_spoolEmptyController.text.trim());
+    final diameter = double.tryParse(_spoolDiameterController.text.trim());
+    final tempImp = double.tryParse(_spoolTempImpController.text.trim());
+    final tempBed = double.tryParse(_spoolTempBedController.text.trim());
+    final debit = double.tryParse(_spoolDebitController.text.trim());
+    final pressureAdvance = double.tryParse(_spoolPressureAdvanceController.text.trim());
+    final vitVolMax = double.tryParse(_spoolVitVolMaxController.text.trim());
+    final vitImp = double.tryParse(_spoolVitImpController.text.trim());
     if (brand.isEmpty || material.isEmpty || color.isEmpty || initialWeight == null) {
       setState(() {
         _error = 'Champs requis spool: marque, matiere, couleur, poids initial.';
@@ -496,6 +517,13 @@ class _NfcStockPageState extends State<NfcStockPage> {
           'color_name': color,
           'initial_weight': initialWeight,
           'empty_spool_weight': emptyWeight ?? 200,
+          'diametre': diameter ?? 1.75,
+          'temperature_imp': tempImp ?? 200,
+          'temperature_table': tempBed ?? 50,
+          'debit': debit ?? 100,
+          'pressure_advance': pressureAdvance ?? 0,
+          'vit_volum_max': vitVolMax ?? 15,
+          'vit_imp': vitImp ?? 60,
         },
       );
       if (!mounted) {
@@ -537,6 +565,17 @@ class _NfcStockPageState extends State<NfcStockPage> {
       _isSpoolCrudLoading = true;
       _error = null;
     });
+
+    final initialWeight = double.tryParse(_spoolInitialController.text.trim());
+    final emptyWeight = double.tryParse(_spoolEmptyController.text.trim());
+    final diameter = double.tryParse(_spoolDiameterController.text.trim());
+    final tempImp = double.tryParse(_spoolTempImpController.text.trim());
+    final tempBed = double.tryParse(_spoolTempBedController.text.trim());
+    final debit = double.tryParse(_spoolDebitController.text.trim());
+    final pressureAdvance = double.tryParse(_spoolPressureAdvanceController.text.trim());
+    final vitVolMax = double.tryParse(_spoolVitVolMaxController.text.trim());
+    final vitImp = double.tryParse(_spoolVitImpController.text.trim());
+
     try {
       await _apiClient.updateSpool(
         token: _authToken!,
@@ -546,10 +585,16 @@ class _NfcStockPageState extends State<NfcStockPage> {
           if (_spoolBrandController.text.trim().isNotEmpty) 'brand_name': _spoolBrandController.text.trim(),
           if (_spoolMaterialController.text.trim().isNotEmpty) 'material_name': _spoolMaterialController.text.trim(),
           if (_spoolColorController.text.trim().isNotEmpty) 'color_name': _spoolColorController.text.trim(),
-          if (_spoolInitialController.text.trim().isNotEmpty)
-            'initial_weight': double.tryParse(_spoolInitialController.text.trim()),
-          if (_spoolEmptyController.text.trim().isNotEmpty)
-            'empty_spool_weight': double.tryParse(_spoolEmptyController.text.trim()),
+          if (_spoolInitialController.text.trim().isNotEmpty && initialWeight != null) 'initial_weight': initialWeight,
+          if (_spoolEmptyController.text.trim().isNotEmpty && emptyWeight != null) 'empty_spool_weight': emptyWeight,
+          if (_spoolDiameterController.text.trim().isNotEmpty && diameter != null) 'diametre': diameter,
+          if (_spoolTempImpController.text.trim().isNotEmpty && tempImp != null) 'temperature_imp': tempImp,
+          if (_spoolTempBedController.text.trim().isNotEmpty && tempBed != null) 'temperature_table': tempBed,
+          if (_spoolDebitController.text.trim().isNotEmpty && debit != null) 'debit': debit,
+          if (_spoolPressureAdvanceController.text.trim().isNotEmpty && pressureAdvance != null)
+            'pressure_advance': pressureAdvance,
+          if (_spoolVitVolMaxController.text.trim().isNotEmpty && vitVolMax != null) 'vit_volum_max': vitVolMax,
+          if (_spoolVitImpController.text.trim().isNotEmpty && vitImp != null) 'vit_imp': vitImp,
         },
       );
       if (!mounted) {
@@ -1047,6 +1092,70 @@ class _NfcStockPageState extends State<NfcStockPage> {
               ],
             ),
             const SizedBox(height: 8),
+            const Text('Parametres techniques'),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _spoolDiameterController,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(labelText: 'Diametre (mm)'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    controller: _spoolVitImpController,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(labelText: 'Vit. impression'),
+                  ),
+                ),
+              ],
+            ),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _spoolTempImpController,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(labelText: 'Temp. buse'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    controller: _spoolTempBedController,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(labelText: 'Temp. plateau'),
+                  ),
+                ),
+              ],
+            ),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _spoolDebitController,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(labelText: 'Debit (%)'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    controller: _spoolPressureAdvanceController,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(labelText: 'Pressure advance'),
+                  ),
+                ),
+              ],
+            ),
+            TextField(
+              controller: _spoolVitVolMaxController,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(labelText: 'Vit. volumetrique max'),
+            ),
+            const SizedBox(height: 8),
             Wrap(
               spacing: 8,
               runSpacing: 8,
@@ -1117,6 +1226,70 @@ class _NfcStockPageState extends State<NfcStockPage> {
               ],
             ),
             const SizedBox(height: 8),
+            const Text('Parametres techniques (optionnels)'),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _spoolDiameterController,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(labelText: 'Diametre (opt.)'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    controller: _spoolVitImpController,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(labelText: 'Vit. impression (opt.)'),
+                  ),
+                ),
+              ],
+            ),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _spoolTempImpController,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(labelText: 'Temp. buse (opt.)'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    controller: _spoolTempBedController,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(labelText: 'Temp. plateau (opt.)'),
+                  ),
+                ),
+              ],
+            ),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _spoolDebitController,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(labelText: 'Debit (opt.)'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    controller: _spoolPressureAdvanceController,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(labelText: 'Pressure advance (opt.)'),
+                  ),
+                ),
+              ],
+            ),
+            TextField(
+              controller: _spoolVitVolMaxController,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(labelText: 'Vit. volum max (opt.)'),
+            ),
+            const SizedBox(height: 8),
             Wrap(
               spacing: 8,
               runSpacing: 8,
@@ -1149,6 +1322,13 @@ class _NfcStockPageState extends State<NfcStockPage> {
     _spoolColorController.clear();
     _spoolInitialController.text = '1000';
     _spoolEmptyController.text = '200';
+    _spoolDiameterController.text = '1.75';
+    _spoolTempImpController.text = '200';
+    _spoolTempBedController.text = '50';
+    _spoolDebitController.text = '100';
+    _spoolPressureAdvanceController.text = '0';
+    _spoolVitVolMaxController.text = '15';
+    _spoolVitImpController.text = '60';
   }
 
   Widget _buildInventoryCard() {
