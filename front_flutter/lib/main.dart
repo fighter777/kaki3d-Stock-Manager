@@ -893,6 +893,44 @@ class _NfcStockPageState extends State<NfcStockPage> {
     }
   }
 
+  void _prefillSpoolFields(Spool spool, {required bool includeId}) {
+    if (includeId) {
+      _spoolIdController.text = spool.id.toString();
+    }
+    _spoolNfcController.text = spool.nfcId;
+    _spoolBrandController.text = spool.brand;
+    _spoolMaterialController.text = spool.material;
+    _spoolColorController.text = spool.color;
+    _spoolInitialController.text = spool.initialWeight.toStringAsFixed(2);
+    _spoolEmptyController.text = spool.emptySpoolWeight.toStringAsFixed(2);
+    _spoolDiameterController.text = spool.diameter.toStringAsFixed(2);
+    _spoolTempImpController.text = spool.temperatureImp.toStringAsFixed(2);
+    _spoolTempBedController.text = spool.temperatureTable.toStringAsFixed(2);
+    _spoolDebitController.text = spool.debit.toStringAsFixed(2);
+    _spoolPressureAdvanceController.text = spool.pressureAdvance.toStringAsFixed(3);
+    _spoolVitVolMaxController.text = spool.vitVolumMax.toStringAsFixed(2);
+    _spoolVitImpController.text = spool.vitImp.toStringAsFixed(2);
+  }
+
+  void _openSpoolInEdit(Spool spool) {
+    setState(() {
+      _prefillSpoolFields(spool, includeId: true);
+      _selectedIndex = 3;
+      _status = 'Bobine #${spool.id} chargee dans l\'ecran Modif.';
+      _error = null;
+    });
+  }
+
+  void _openSpoolForConsumption(Spool spool) {
+    setState(() {
+      _spool = spool;
+      _lastUid = spool.nfcId.isNotEmpty ? spool.nfcId : null;
+      _selectedIndex = 0;
+      _status = 'Bobine #${spool.id} chargee pour consommation.';
+      _error = null;
+    });
+  }
+
   Future<void> _promptCreateSpoolForUnknownTag(String uid) async {
     final create = await showDialog<bool>(
       context: context,
@@ -1356,11 +1394,25 @@ class _NfcStockPageState extends State<NfcStockPage> {
                       contentPadding: EdgeInsets.zero,
                       title: Text('#${e.id} ${e.brand} ${e.color}'),
                       subtitle: Text('${e.material} | ${e.remainingWeight.toStringAsFixed(1)}g'),
-                      trailing: OutlinedButton(
-                        onPressed: _authToken != null && !_isSpoolCrudLoading
-                            ? () => _cloneSpoolFromInventory(e)
-                            : null,
-                        child: const Text('Dupliquer'),
+                      trailing: PopupMenuButton<String>(
+                        onSelected: (value) {
+                          if (value == 'clone') {
+                            _cloneSpoolFromInventory(e);
+                            return;
+                          }
+                          if (value == 'edit') {
+                            _openSpoolInEdit(e);
+                            return;
+                          }
+                          if (value == 'use') {
+                            _openSpoolForConsumption(e);
+                          }
+                        },
+                        itemBuilder: (context) => const [
+                          PopupMenuItem(value: 'use', child: Text('Utiliser')),
+                          PopupMenuItem(value: 'edit', child: Text('Modifier')),
+                          PopupMenuItem(value: 'clone', child: Text('Dupliquer')),
+                        ],
                       ),
                     ),
                   ),
@@ -1434,27 +1486,54 @@ class _NfcStockPageState extends State<NfcStockPage> {
 class Spool {
   const Spool({
     required this.id,
+    required this.nfcId,
     required this.brand,
     required this.color,
     required this.material,
     required this.initialWeight,
+    required this.emptySpoolWeight,
+    required this.diameter,
+    required this.temperatureImp,
+    required this.temperatureTable,
+    required this.debit,
+    required this.pressureAdvance,
+    required this.vitVolumMax,
+    required this.vitImp,
     required this.remainingWeight,
   });
 
   final int id;
+  final String nfcId;
   final String brand;
   final String color;
   final String material;
   final double initialWeight;
+  final double emptySpoolWeight;
+  final double diameter;
+  final double temperatureImp;
+  final double temperatureTable;
+  final double debit;
+  final double pressureAdvance;
+  final double vitVolumMax;
+  final double vitImp;
   final double remainingWeight;
 
   factory Spool.fromJson(Map<String, dynamic> json) {
     return Spool(
       id: _asInt(json['id_spools']),
+      nfcId: (json['nfc_id'] ?? '') as String,
       brand: (json['nom_marques'] ?? '') as String,
       color: (json['color_name'] ?? '') as String,
       material: (json['type_materials'] ?? '') as String,
       initialWeight: _asDouble(json['initial_weight']),
+      emptySpoolWeight: _asDouble(json['empty_spool_weight']),
+      diameter: _asDouble(json['diametre']),
+      temperatureImp: _asDouble(json['temperature_imp']),
+      temperatureTable: _asDouble(json['temperature_table']),
+      debit: _asDouble(json['debit']),
+      pressureAdvance: _asDouble(json['pressure_advance']),
+      vitVolumMax: _asDouble(json['vit_volum_max']),
+      vitImp: _asDouble(json['vit_imp']),
       remainingWeight: _asDouble(json['poids_restant']),
     );
   }
