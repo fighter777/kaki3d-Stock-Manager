@@ -222,6 +222,55 @@ class SpoolRepository
         return $stmt->rowCount() > 0;
     }
 
+    public function cloneSpool(int $spoolId, ?string $nfcId = null): ?array
+    {
+        $existing = $this->getById($spoolId);
+        if ($existing === null) {
+            return null;
+        }
+
+        $pdo = $this->connectionFactory->create();
+        $pdo->beginTransaction();
+
+        try {
+            $stmt = $pdo->prepare(
+                'INSERT INTO public.spools (
+                    nfc_id, color_name, initial_weight, empty_spool_weight,
+                    diametre, temperature_imp, temperature_table, debit,
+                    pressure_advance, vit_volum_max, vit_imp, id_marques, id_materials
+                ) VALUES (
+                    :nfc_id, :color_name, :initial_weight, :empty_spool_weight,
+                    :diametre, :temperature_imp, :temperature_table, :debit,
+                    :pressure_advance, :vit_volum_max, :vit_imp, :id_marques, :id_materials
+                ) RETURNING id_spools'
+            );
+
+            $stmt->execute([
+                'nfc_id' => $nfcId ?? '',
+                'color_name' => (string) $existing['color_name'],
+                'initial_weight' => (float) $existing['initial_weight'],
+                'empty_spool_weight' => (float) $existing['empty_spool_weight'],
+                'diametre' => (float) $existing['diametre'],
+                'temperature_imp' => (float) $existing['temperature_imp'],
+                'temperature_table' => (float) $existing['temperature_table'],
+                'debit' => (float) $existing['debit'],
+                'pressure_advance' => (float) $existing['pressure_advance'],
+                'vit_volum_max' => (float) $existing['vit_volum_max'],
+                'vit_imp' => (float) $existing['vit_imp'],
+                'id_marques' => (int) $existing['id_marques'],
+                'id_materials' => (int) $existing['id_materials'],
+            ]);
+
+            $newId = (int) $stmt->fetchColumn();
+            $pdo->commit();
+
+            return $this->getById($newId);
+        } catch (\Throwable $e) {
+            $pdo->rollBack();
+            throw $e;
+        }
+    }
+
     public function getStatsByMaterial(): array
     {
         $sql = <<<SQL

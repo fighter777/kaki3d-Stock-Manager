@@ -64,6 +64,7 @@ class _NfcStockPageState extends State<NfcStockPage> {
   String? _lastUid;
   Spool? _spool;
   List<Spool> _inventory = const [];
+  List<Map<String, dynamic>> _inventoryAggregated = const [];
   List<Map<String, dynamic>> _statsMaterials = const [];
   List<Map<String, dynamic>> _statsProjects = const [];
   List<Map<String, dynamic>> _statsMonthly = const [];
@@ -322,6 +323,30 @@ class _NfcStockPageState extends State<NfcStockPage> {
               _weightController.text = '10';
             });
             await NfcManager.instance.stopSession(alertMessageIos: 'Tag lu');
+          } on ApiHttpException catch (e) {
+            if (!mounted) {
+              return;
+            }
+            if (e.statusCode == 404) {
+              setState(() {
+                _lastUid = uid;
+                _spool = null;
+                _status = 'Tag lu, bobine introuvable.';
+                _error = null;
+                _isScanning = false;
+              });
+              await NfcManager.instance.stopSession(errorMessageIos: 'Bobine introuvable');
+              await _promptCreateSpoolForUnknownTag(uid);
+              return;
+            }
+            setState(() {
+              _lastUid = uid;
+              _spool = null;
+              _status = 'Echec lecture bobine.';
+              _error = e.toString();
+              _isScanning = false;
+            });
+            await NfcManager.instance.stopSession(errorMessageIos: 'Erreur API');
           } catch (e) {
             if (!mounted) {
               return;
@@ -329,11 +354,11 @@ class _NfcStockPageState extends State<NfcStockPage> {
             setState(() {
               _lastUid = uid;
               _spool = null;
-              _status = 'Tag lu, mais bobine introuvable.';
+              _status = 'Echec lecture bobine.';
               _error = e.toString();
               _isScanning = false;
             });
-            await NfcManager.instance.stopSession(errorMessageIos: 'Bobine introuvable');
+            await NfcManager.instance.stopSession(errorMessageIos: 'Erreur API');
           }
         },
       );
@@ -416,11 +441,13 @@ class _NfcStockPageState extends State<NfcStockPage> {
     });
     try {
       final data = await _apiClient.getInventory(_authToken!);
+      final aggregated = await _apiClient.getAggregatedInventory(_authToken!);
       if (!mounted) {
         return;
       }
       setState(() {
         _inventory = data;
+        _inventoryAggregated = aggregated;
       });
     } catch (e) {
       if (!mounted) {
@@ -747,6 +774,113 @@ class _NfcStockPageState extends State<NfcStockPage> {
     }
   }
 
+  Future<void> _cloneSpoolFromInventory(Spool spool) async {
+    if (_authToken == null || _isSpoolCrudLoading) {
+      return;
+    }
+
+    final nfcCtrl = TextEditingController();
+    final create = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Dupliquer bobine #${spool.id}'),
+          content: TextField(
+            controller: nfcCtrl,
+            decoration: const InputDecoration(
+              labelText: 'NFC ID (optionnel)',
+              hintText: 'Laisser vide pour associer plus tard',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Annuler'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Dupliquer'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (!mounted || create != true) {
+      nfcCtrl.dispose();
+      return;
+    }
+
+    setState(() {
+      _isSpoolCrudLoading = true;
+      _error = null;
+    });
+
+    try {
+      final nfcId = nfcCtrl.text.trim();
+      final cloned = await _apiClient.cloneSpool(
+        token: _authToken!,
+        id: spool.id,
+        nfcId: nfcId.isEmpty ? null : nfcId,
+      );
+
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _status = 'Bobine dupliquee (id ${cloned.id}).';
+      });
+      await _loadInventory();
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _error = 'Erreur duplication bobine: $e';
+      });
+    } finally {
+      nfcCtrl.dispose();
+      if (mounted) {
+        setState(() {
+          _isSpoolCrudLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _promptCreateSpoolForUnknownTag(String uid) async {
+    final create = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Tag inconnu'),
+          content: Text('Le tag $uid est inconnu. Creer une nouvelle bobine ?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Non'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Creer'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (!mounted || create != true) {
+      return;
+    }
+
+    setState(() {
+      _spoolNfcController.text = uid;
+      _selectedIndex = 2;
+      _status = 'Tag inconnu: complete le formulaire pour creer la bobine.';
+      _error = null;
+    });
+  }
+
   Widget _buildAuthCard() {
     return Card(
       child: Padding(
@@ -1037,10 +1171,49 @@ class _NfcStockPageState extends State<NfcStockPage> {
               const Text('Aucune donnee inventaire.')
             else
               ..._inventory.take(20).map(
-                    (e) => Text(
-                      '#${e.id} ${e.brand} ${e.color} | ${e.material} | ${e.remainingWeight.toStringAsFixed(1)}g',
+                    (e) => ListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      title: Text('#${e.id} ${e.brand} ${e.color}'),
+                      subtitle: Text('${e.material} | ${e.remainingWeight.toStringAsFixed(1)}g'),
+                      trailing: OutlinedButton(
+                        onPressed: _authToken != null && !_isSpoolCrudLoading
+                            ? () => _cloneSpoolFromInventory(e)
+                            : null,
+                        child: const Text('Dupliquer'),
+                      ),
                     ),
                   ),
+            const SizedBox(height: 16),
+            const Text('Stock agrege', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            if (_inventoryAggregated.isEmpty)
+              const Text('Aucune donnee agregee.')
+            else
+              ..._inventoryAggregated.map((row) {
+                final totalInitial = Spool._asDouble(row['total_initial']);
+                final totalRestant = Spool._asDouble(row['total_restant']);
+                final ratio = totalInitial > 0
+                    ? (totalRestant / totalInitial).clamp(0.0, 1.0).toDouble()
+                    : 0.0;
+                final brand = (row['nom_marques'] ?? '').toString();
+                final material = (row['type_materials'] ?? '').toString();
+                final color = (row['color_name'] ?? '').toString();
+
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('$brand | $material | $color'),
+                      const SizedBox(height: 4),
+                      LinearProgressIndicator(value: ratio),
+                      const SizedBox(height: 4),
+                      Text('${totalRestant.toStringAsFixed(0)}g / ${totalInitial.toStringAsFixed(0)}g'),
+                    ],
+                  ),
+                );
+              }),
           ],
         ),
       ),
@@ -1201,7 +1374,21 @@ class ApiClient {
       return decoded.map((e) => Spool.fromJson(e as Map<String, dynamic>)).toList();
     }
 
-    throw Exception('HTTP ${response.statusCode}: ${response.body}');
+    throw ApiHttpException(response.statusCode, response.body);
+  }
+
+  Future<List<Map<String, dynamic>>> getAggregatedInventory(String token) async {
+    final response = await _client.get(
+      _uri('/api/spools/aggregated'),
+      headers: _headersWithToken(token),
+    );
+
+    if (response.statusCode == 200) {
+      final decoded = jsonDecode(response.body) as List<dynamic>;
+      return decoded.map((e) => (e as Map<String, dynamic>)).toList();
+    }
+
+    throw ApiHttpException(response.statusCode, response.body);
   }
 
   Future<Spool> createSpool({
@@ -1219,7 +1406,7 @@ class ApiClient {
       return Spool.fromJson(decoded);
     }
 
-    throw Exception('HTTP ${response.statusCode}: ${response.body}');
+    throw ApiHttpException(response.statusCode, response.body);
   }
 
   Future<void> updateSpool({
@@ -1234,7 +1421,7 @@ class ApiClient {
     );
 
     if (response.statusCode != 200) {
-      throw Exception('HTTP ${response.statusCode}: ${response.body}');
+      throw ApiHttpException(response.statusCode, response.body);
     }
   }
 
@@ -1247,6 +1434,30 @@ class ApiClient {
     if (response.statusCode != 200) {
       throw Exception('HTTP ${response.statusCode}: ${response.body}');
     }
+  }
+
+  Future<Spool> cloneSpool({
+    required String token,
+    required int id,
+    String? nfcId,
+  }) async {
+    final payload = <String, dynamic>{};
+    if (nfcId != null) {
+      payload['nfc_id'] = nfcId;
+    }
+
+    final response = await _client.post(
+      _uri('/api/spools/$id/clone'),
+      headers: _headersWithToken(token),
+      body: jsonEncode(payload),
+    );
+
+    if (response.statusCode == 201) {
+      final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+      return Spool.fromJson(decoded);
+    }
+
+    throw Exception('HTTP ${response.statusCode}: ${response.body}');
   }
 
   Future<List<Map<String, dynamic>>> getStatsMaterials(String token) async {
@@ -1286,7 +1497,7 @@ class ApiClient {
       return Spool.fromJson(decoded);
     }
 
-    throw Exception('HTTP ${response.statusCode}: ${response.body}');
+    throw ApiHttpException(response.statusCode, response.body);
   }
 
   Future<void> createUsage({
@@ -1313,4 +1524,14 @@ class ApiClient {
       throw Exception('HTTP ${response.statusCode}: ${response.body}');
     }
   }
+}
+
+class ApiHttpException implements Exception {
+  ApiHttpException(this.statusCode, this.body);
+
+  final int statusCode;
+  final String body;
+
+  @override
+  String toString() => 'HTTP $statusCode: $body';
 }

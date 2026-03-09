@@ -48,6 +48,11 @@ api_spool_delete:
     controller: App\Controller\ApiController::deleteSpool
     methods: [DELETE]
 
+api_spool_clone:
+    path: /api/spools/{id}/clone
+    controller: App\Controller\ApiController::cloneSpool
+    methods: [POST]
+
 api_stats_materials:
     path: /api/stats/materials
     controller: App\Controller\ApiController::statsByMaterial

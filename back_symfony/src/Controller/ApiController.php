@@ -135,6 +135,32 @@ class ApiController
         return new JsonResponse(['status' => 'deleted']);
     }
 
+    public function cloneSpool(int $id, Request $request, SpoolRepository $spoolRepository): JsonResponse
+    {
+        $payload = [];
+        if ($request->getContent() !== '') {
+            try {
+                $payload = $this->parseJson($request);
+            } catch (\InvalidArgumentException $e) {
+                return new JsonResponse(['message' => $e->getMessage()], 400);
+            }
+        }
+
+        $nfcId = array_key_exists('nfc_id', $payload) ? trim((string) $payload['nfc_id']) : null;
+
+        try {
+            $cloned = $spoolRepository->cloneSpool($id, $nfcId !== '' ? $nfcId : null);
+        } catch (\Throwable $e) {
+            return new JsonResponse(['message' => 'Clone spool failed', 'detail' => $e->getMessage()], 400);
+        }
+
+        if ($cloned === null) {
+            return new JsonResponse(['message' => 'Spool not found'], 404);
+        }
+
+        return new JsonResponse($cloned, 201);
+    }
+
     public function statsByMaterial(SpoolRepository $spoolRepository): JsonResponse
     {
         return new JsonResponse($spoolRepository->getStatsByMaterial());
