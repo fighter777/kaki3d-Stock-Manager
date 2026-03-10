@@ -27,6 +27,11 @@ services:
             - '../src/Entity/'
             - '../src/Kernel.php'
 
+    App\Controller\:
+        resource: '../src/Controller/'
+        tags: ['controller.service_arguments']
+        public: true
+
     App\Infrastructure\DatabaseConnectionFactory:
         arguments:
             $host: '%app.db_host%'
