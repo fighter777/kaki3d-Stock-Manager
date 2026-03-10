@@ -746,7 +746,34 @@ class _NfcStockPageState extends State<NfcStockPage> {
     ];
 
     return Scaffold(
-      appBar: AppBar(title: Text(titles[_selectedIndex])),
+      appBar: AppBar(
+        title: Text(titles[_selectedIndex]),
+        actions: _authToken == null
+            ? null
+            : [
+                PopupMenuButton<String>(
+                  onSelected: (value) {
+                    if (value == 'password') {
+                      _changePasswordDialog();
+                      return;
+                    }
+                    if (value == 'logout') {
+                      _logout();
+                    }
+                  },
+                  itemBuilder: (context) => const [
+                    PopupMenuItem(
+                      value: 'password',
+                      child: Text('Changer mot de passe'),
+                    ),
+                    PopupMenuItem(
+                      value: 'logout',
+                      child: Text('Logout'),
+                    ),
+                  ],
+                ),
+              ],
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: ListView(
@@ -759,15 +786,17 @@ class _NfcStockPageState extends State<NfcStockPage> {
               Text(_error!, style: const TextStyle(color: Colors.red)),
             ],
             const SizedBox(height: 12),
-            _buildAuthCard(),
-            const SizedBox(height: 12),
             if (_authToken == null)
-              const Card(
-                child: Padding(
-                  padding: EdgeInsets.all(12),
-                  child: Text('Connecte-toi pour acceder aux ecrans inventaire/ajout/modif/stats.'),
+              ...[
+                _buildAuthCard(),
+                const SizedBox(height: 12),
+                const Card(
+                  child: Padding(
+                    padding: EdgeInsets.all(12),
+                    child: Text('Connecte-toi pour acceder aux ecrans inventaire/ajout/modif/stats.'),
+                  ),
                 ),
-              )
+              ]
             else
               _buildActiveScreen(context),
           ],
@@ -1029,7 +1058,7 @@ class _NfcStockPageState extends State<NfcStockPage> {
         padding: const EdgeInsets.all(12),
         child: Column(
           children: [
-            Text(_authToken == null ? 'Authentification requise' : 'Authentifie'),
+            const Text('Authentification requise'),
             const SizedBox(height: 8),
             TextField(
               controller: _emailController,
@@ -1056,24 +1085,6 @@ class _NfcStockPageState extends State<NfcStockPage> {
                   child: FilledButton(
                     onPressed: _isAuthLoading ? null : _login,
                     child: const Text('Connexion'),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: _authToken != null && !_isAuthLoading ? _changePasswordDialog : null,
-                    child: const Text('Changer mot de passe'),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: _authToken != null && !_isAuthLoading ? _logout : null,
-                    child: const Text('Logout'),
                   ),
                 ),
               ],
