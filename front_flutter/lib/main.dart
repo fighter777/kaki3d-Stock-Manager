@@ -48,9 +48,6 @@ class _NfcStockPageState extends State<NfcStockPage> {
   final TextEditingController _manualUidController = TextEditingController();
   final TextEditingController _spoolIdController = TextEditingController();
   final TextEditingController _spoolNfcController = TextEditingController();
-  final TextEditingController _spoolBrandController = TextEditingController();
-  final TextEditingController _spoolMaterialController = TextEditingController();
-  final TextEditingController _spoolColorController = TextEditingController();
   final TextEditingController _spoolInitialController = TextEditingController(text: '1000');
   final TextEditingController _spoolEmptyController = TextEditingController(text: '200');
   final TextEditingController _spoolDiameterController = TextEditingController(text: '1.75');
@@ -60,6 +57,9 @@ class _NfcStockPageState extends State<NfcStockPage> {
   final TextEditingController _spoolPressureAdvanceController = TextEditingController(text: '0');
   final TextEditingController _spoolVitVolMaxController = TextEditingController(text: '15');
   final TextEditingController _spoolVitImpController = TextEditingController(text: '60');
+  final TextEditingController _newBrandController = TextEditingController();
+  final TextEditingController _newMaterialController = TextEditingController();
+  final TextEditingController _newColorController = TextEditingController();
 
   bool _nfcAvailable = false;
   bool _isAuthLoading = false;
@@ -68,6 +68,7 @@ class _NfcStockPageState extends State<NfcStockPage> {
   bool _isInventoryLoading = false;
   bool _isSpoolCrudLoading = false;
   bool _isStatsLoading = false;
+  bool _isCatalogLoading = false;
   int _selectedIndex = 0;
   String _status = 'Verification NFC...';
   String? _authToken;
@@ -78,6 +79,12 @@ class _NfcStockPageState extends State<NfcStockPage> {
   List<Map<String, dynamic>> _statsMaterials = const [];
   List<Map<String, dynamic>> _statsProjects = const [];
   List<Map<String, dynamic>> _statsMonthly = const [];
+  List<CatalogItem> _brands = const [];
+  List<CatalogItem> _materials = const [];
+  List<CatalogItem> _colors = const [];
+  int? _selectedBrandId;
+  int? _selectedMaterialId;
+  int? _selectedColorId;
   String? _error;
 
   @override
@@ -95,9 +102,6 @@ class _NfcStockPageState extends State<NfcStockPage> {
     _manualUidController.dispose();
     _spoolIdController.dispose();
     _spoolNfcController.dispose();
-    _spoolBrandController.dispose();
-    _spoolMaterialController.dispose();
-    _spoolColorController.dispose();
     _spoolInitialController.dispose();
     _spoolEmptyController.dispose();
     _spoolDiameterController.dispose();
@@ -107,6 +111,9 @@ class _NfcStockPageState extends State<NfcStockPage> {
     _spoolPressureAdvanceController.dispose();
     _spoolVitVolMaxController.dispose();
     _spoolVitImpController.dispose();
+    _newBrandController.dispose();
+    _newMaterialController.dispose();
+    _newColorController.dispose();
     super.dispose();
   }
 
@@ -152,6 +159,7 @@ class _NfcStockPageState extends State<NfcStockPage> {
         _authToken = token;
         _status = mode == 'register' ? 'Compte cree.' : 'Connecte.';
       });
+      await _loadCatalogs();
     } catch (e) {
       if (!mounted) {
         return;
@@ -276,6 +284,12 @@ class _NfcStockPageState extends State<NfcStockPage> {
         _authToken = null;
         _spool = null;
         _lastUid = null;
+        _brands = const [];
+        _materials = const [];
+        _colors = const [];
+        _selectedBrandId = null;
+        _selectedMaterialId = null;
+        _selectedColorId = null;
         _status = 'Deconnecte.';
       });
     } catch (e) {
@@ -487,9 +501,6 @@ class _NfcStockPageState extends State<NfcStockPage> {
     if (_authToken == null || _isSpoolCrudLoading) {
       return;
     }
-    final brand = _spoolBrandController.text.trim();
-    final material = _spoolMaterialController.text.trim();
-    final color = _spoolColorController.text.trim();
     final initialWeight = double.tryParse(_spoolInitialController.text.trim());
     final emptyWeight = double.tryParse(_spoolEmptyController.text.trim());
     final diameter = double.tryParse(_spoolDiameterController.text.trim());
@@ -499,9 +510,9 @@ class _NfcStockPageState extends State<NfcStockPage> {
     final pressureAdvance = double.tryParse(_spoolPressureAdvanceController.text.trim());
     final vitVolMax = double.tryParse(_spoolVitVolMaxController.text.trim());
     final vitImp = double.tryParse(_spoolVitImpController.text.trim());
-    if (brand.isEmpty || material.isEmpty || color.isEmpty || initialWeight == null) {
+    if (_selectedBrandId == null || _selectedMaterialId == null || _selectedColorId == null || initialWeight == null) {
       setState(() {
-        _error = 'Champs requis spool: marque, matiere, couleur, poids initial.';
+        _error = 'Selectionne marque, matiere, couleur et poids initial.';
       });
       return;
     }
@@ -516,9 +527,9 @@ class _NfcStockPageState extends State<NfcStockPage> {
         token: _authToken!,
         payload: {
           'nfc_id': _spoolNfcController.text.trim(),
-          'brand_name': brand,
-          'material_name': material,
-          'color_name': color,
+          'brand_id': _selectedBrandId,
+          'material_id': _selectedMaterialId,
+          'color_id': _selectedColorId,
           'initial_weight': initialWeight,
           'empty_spool_weight': emptyWeight ?? 200,
           'diametre': diameter ?? 1.75,
@@ -586,9 +597,9 @@ class _NfcStockPageState extends State<NfcStockPage> {
         id: id,
         payload: {
           if (_spoolNfcController.text.trim().isNotEmpty) 'nfc_id': _spoolNfcController.text.trim(),
-          if (_spoolBrandController.text.trim().isNotEmpty) 'brand_name': _spoolBrandController.text.trim(),
-          if (_spoolMaterialController.text.trim().isNotEmpty) 'material_name': _spoolMaterialController.text.trim(),
-          if (_spoolColorController.text.trim().isNotEmpty) 'color_name': _spoolColorController.text.trim(),
+          if (_selectedBrandId != null) 'brand_id': _selectedBrandId,
+          if (_selectedMaterialId != null) 'material_id': _selectedMaterialId,
+          if (_selectedColorId != null) 'color_id': _selectedColorId,
           if (_spoolInitialController.text.trim().isNotEmpty && initialWeight != null) 'initial_weight': initialWeight,
           if (_spoolEmptyController.text.trim().isNotEmpty && emptyWeight != null) 'empty_spool_weight': emptyWeight,
           if (_spoolDiameterController.text.trim().isNotEmpty && diameter != null) 'diametre': diameter,
@@ -743,6 +754,7 @@ class _NfcStockPageState extends State<NfcStockPage> {
       'Kaki3D - Ajout Bobine',
       'Kaki3D - Modifier Bobine',
       'Kaki3D - Stats',
+      'Kaki3D - Catalogue',
     ];
 
     return Scaffold(
@@ -808,6 +820,9 @@ class _NfcStockPageState extends State<NfcStockPage> {
           setState(() {
             _selectedIndex = index;
           });
+          if (index == 2 || index == 3 || index == 5) {
+            _loadCatalogs();
+          }
         },
         destinations: const [
           NavigationDestination(
@@ -829,6 +844,10 @@ class _NfcStockPageState extends State<NfcStockPage> {
           NavigationDestination(
             icon: Icon(Icons.bar_chart_outlined),
             label: 'Stats',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.list_alt_outlined),
+            label: 'Catalogue',
           ),
         ],
       ),
@@ -890,6 +909,176 @@ class _NfcStockPageState extends State<NfcStockPage> {
     }
   }
 
+  Future<void> _loadCatalogs() async {
+    if (_authToken == null || _isCatalogLoading) {
+      return;
+    }
+
+    setState(() {
+      _isCatalogLoading = true;
+      _error = null;
+    });
+
+    try {
+      final brands = await _apiClient.getBrands(_authToken!);
+      final materials = await _apiClient.getMaterials(_authToken!);
+      final colors = await _apiClient.getColors(_authToken!);
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _brands = brands;
+        _materials = materials;
+        _colors = colors;
+        if (_selectedBrandId != null && !_brands.any((e) => e.id == _selectedBrandId)) {
+          _selectedBrandId = null;
+        }
+        if (_selectedMaterialId != null && !_materials.any((e) => e.id == _selectedMaterialId)) {
+          _selectedMaterialId = null;
+        }
+        if (_selectedColorId != null && !_colors.any((e) => e.id == _selectedColorId)) {
+          _selectedColorId = null;
+        }
+      });
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _error = 'Erreur chargement catalogues: $e';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isCatalogLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _addCatalogItem({
+    required String type,
+    required TextEditingController controller,
+  }) async {
+    if (_authToken == null || _isCatalogLoading) {
+      return;
+    }
+
+    final name = controller.text.trim();
+    if (name.isEmpty) {
+      setState(() {
+        _error = 'Nom vide pour $type.';
+      });
+      return;
+    }
+
+    setState(() {
+      _isCatalogLoading = true;
+      _error = null;
+    });
+
+    try {
+      switch (type) {
+        case 'marque':
+          await _apiClient.createBrand(_authToken!, name);
+          break;
+        case 'matiere':
+          await _apiClient.createMaterial(_authToken!, name);
+          break;
+        case 'couleur':
+          await _apiClient.createColor(_authToken!, name);
+          break;
+        default:
+          throw Exception('Type catalogue inconnu');
+      }
+
+      controller.clear();
+      await _loadCatalogs();
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _error = 'Erreur ajout catalogue: $e';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isCatalogLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _deleteCatalogItem({
+    required String type,
+    required CatalogItem item,
+  }) async {
+    if (_authToken == null || _isCatalogLoading) {
+      return;
+    }
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Supprimer ${item.name} ?'),
+        content: const Text('Suppression impossible si des bobines l\'utilisent deja.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Annuler'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Supprimer'),
+          ),
+        ],
+      ),
+    );
+
+    if (!mounted || confirm != true) {
+      return;
+    }
+
+    setState(() {
+      _isCatalogLoading = true;
+      _error = null;
+    });
+
+    try {
+      switch (type) {
+        case 'marque':
+          await _apiClient.deleteBrand(_authToken!, item.id);
+          break;
+        case 'matiere':
+          await _apiClient.deleteMaterial(_authToken!, item.id);
+          break;
+        case 'couleur':
+          await _apiClient.deleteColor(_authToken!, item.id);
+          break;
+        default:
+          throw Exception('Type catalogue inconnu');
+      }
+
+      await _loadCatalogs();
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _error = 'Erreur suppression catalogue: $e';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isCatalogLoading = false;
+        });
+      }
+    }
+  }
+
   Widget _buildActiveScreen(BuildContext context) {
     switch (_selectedIndex) {
       case 0:
@@ -902,6 +1091,8 @@ class _NfcStockPageState extends State<NfcStockPage> {
         return _buildSpoolEditCard();
       case 4:
         return _buildStatsCard();
+      case 5:
+        return _buildCatalogCard();
       default:
         return const SizedBox.shrink();
     }
@@ -986,9 +1177,9 @@ class _NfcStockPageState extends State<NfcStockPage> {
       _spoolIdController.text = spool.id.toString();
     }
     _spoolNfcController.text = spool.nfcId;
-    _spoolBrandController.text = spool.brand;
-    _spoolMaterialController.text = spool.material;
-    _spoolColorController.text = spool.color;
+    _selectedBrandId = _findCatalogIdByName(_brands, spool.brand);
+    _selectedMaterialId = _findCatalogIdByName(_materials, spool.material);
+    _selectedColorId = _findCatalogIdByName(_colors, spool.color);
     _spoolInitialController.text = spool.initialWeight.toStringAsFixed(2);
     _spoolEmptyController.text = spool.emptySpoolWeight.toStringAsFixed(2);
     _spoolDiameterController.text = spool.diameter.toStringAsFixed(2);
@@ -1000,7 +1191,11 @@ class _NfcStockPageState extends State<NfcStockPage> {
     _spoolVitImpController.text = spool.vitImp.toStringAsFixed(2);
   }
 
-  void _openSpoolInEdit(Spool spool) {
+  Future<void> _openSpoolInEdit(Spool spool) async {
+    await _loadCatalogs();
+    if (!mounted) {
+      return;
+    }
     setState(() {
       _prefillSpoolFields(spool, includeId: true);
       _selectedIndex = 3;
@@ -1017,6 +1212,38 @@ class _NfcStockPageState extends State<NfcStockPage> {
       _status = 'Bobine #${spool.id} chargee pour consommation.';
       _error = null;
     });
+  }
+
+  int? _findCatalogIdByName(List<CatalogItem> items, String name) {
+    for (final item in items) {
+      if (item.name.toLowerCase() == name.toLowerCase()) {
+        return item.id;
+      }
+    }
+    return null;
+  }
+
+  Widget _buildCatalogDropdown({
+    required String label,
+    required List<CatalogItem> items,
+    required int? value,
+    required ValueChanged<int?> onChanged,
+    required bool requiredValue,
+  }) {
+    return DropdownButtonFormField<int>(
+      initialValue: value,
+      decoration: InputDecoration(labelText: label),
+      items: items
+          .map(
+            (item) => DropdownMenuItem<int>(
+              value: item.id,
+              child: Text(item.name),
+            ),
+          )
+          .toList(),
+      onChanged: onChanged,
+      hint: Text(requiredValue ? 'Selection obligatoire' : 'Ne pas changer'),
+    );
   }
 
   Future<void> _promptCreateSpoolForUnknownTag(String uid) async {
@@ -1044,8 +1271,16 @@ class _NfcStockPageState extends State<NfcStockPage> {
       return;
     }
 
+    await _loadCatalogs();
+    if (!mounted) {
+      return;
+    }
+
     setState(() {
       _spoolNfcController.text = uid;
+      _selectedBrandId = null;
+      _selectedMaterialId = null;
+      _selectedColorId = null;
       _selectedIndex = 2;
       _status = 'Tag inconnu: complete le formulaire pour creer la bobine.';
       _error = null;
@@ -1184,17 +1419,38 @@ class _NfcStockPageState extends State<NfcStockPage> {
               controller: _spoolNfcController,
               decoration: const InputDecoration(labelText: 'NFC ID'),
             ),
-            TextField(
-              controller: _spoolBrandController,
-              decoration: const InputDecoration(labelText: 'Marque'),
+            const SizedBox(height: 8),
+            _buildCatalogDropdown(
+              label: 'Marque',
+              items: _brands,
+              value: _selectedBrandId,
+              onChanged: (value) => setState(() => _selectedBrandId = value),
+              requiredValue: true,
             ),
-            TextField(
-              controller: _spoolMaterialController,
-              decoration: const InputDecoration(labelText: 'Matiere'),
+            _buildCatalogDropdown(
+              label: 'Matiere',
+              items: _materials,
+              value: _selectedMaterialId,
+              onChanged: (value) => setState(() => _selectedMaterialId = value),
+              requiredValue: true,
             ),
-            TextField(
-              controller: _spoolColorController,
-              decoration: const InputDecoration(labelText: 'Couleur'),
+            _buildCatalogDropdown(
+              label: 'Couleur',
+              items: _colors,
+              value: _selectedColorId,
+              onChanged: (value) => setState(() => _selectedColorId = value),
+              requiredValue: true,
+            ),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton(
+                onPressed: () {
+                  setState(() {
+                    _selectedIndex = 5;
+                  });
+                },
+                child: const Text('Gerer les listes'),
+              ),
             ),
             Row(
               children: [
@@ -1318,17 +1574,37 @@ class _NfcStockPageState extends State<NfcStockPage> {
               controller: _spoolNfcController,
               decoration: const InputDecoration(labelText: 'NFC ID (optionnel)'),
             ),
-            TextField(
-              controller: _spoolBrandController,
-              decoration: const InputDecoration(labelText: 'Marque (optionnel)'),
+            _buildCatalogDropdown(
+              label: 'Marque (optionnel)',
+              items: _brands,
+              value: _selectedBrandId,
+              onChanged: (value) => setState(() => _selectedBrandId = value),
+              requiredValue: false,
             ),
-            TextField(
-              controller: _spoolMaterialController,
-              decoration: const InputDecoration(labelText: 'Matiere (optionnel)'),
+            _buildCatalogDropdown(
+              label: 'Matiere (optionnel)',
+              items: _materials,
+              value: _selectedMaterialId,
+              onChanged: (value) => setState(() => _selectedMaterialId = value),
+              requiredValue: false,
             ),
-            TextField(
-              controller: _spoolColorController,
-              decoration: const InputDecoration(labelText: 'Couleur (optionnel)'),
+            _buildCatalogDropdown(
+              label: 'Couleur (optionnel)',
+              items: _colors,
+              value: _selectedColorId,
+              onChanged: (value) => setState(() => _selectedColorId = value),
+              requiredValue: false,
+            ),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton(
+                onPressed: () {
+                  setState(() {
+                    _selectedIndex = 5;
+                  });
+                },
+                child: const Text('Gerer les listes'),
+              ),
             ),
             Row(
               children: [
@@ -1441,9 +1717,9 @@ class _NfcStockPageState extends State<NfcStockPage> {
   void _clearSpoolFields() {
     _spoolIdController.clear();
     _spoolNfcController.clear();
-    _spoolBrandController.clear();
-    _spoolMaterialController.clear();
-    _spoolColorController.clear();
+    _selectedBrandId = null;
+    _selectedMaterialId = null;
+    _selectedColorId = null;
     _spoolInitialController.text = '1000';
     _spoolEmptyController.text = '200';
     _spoolDiameterController.text = '1.75';
@@ -1535,6 +1811,97 @@ class _NfcStockPageState extends State<NfcStockPage> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildCatalogCard() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                const Expanded(child: Text('Catalogue (marques / matieres / couleurs)')),
+                TextButton(
+                  onPressed: _authToken != null && !_isCatalogLoading ? _loadCatalogs : null,
+                  child: const Text('Refresh'),
+                ),
+              ],
+            ),
+            if (_isCatalogLoading) const LinearProgressIndicator(),
+            const SizedBox(height: 8),
+            _buildCatalogSection(
+              title: 'Marques',
+              items: _brands,
+              controller: _newBrandController,
+              addAction: () => _addCatalogItem(type: 'marque', controller: _newBrandController),
+              deleteAction: (item) => _deleteCatalogItem(type: 'marque', item: item),
+            ),
+            const SizedBox(height: 12),
+            _buildCatalogSection(
+              title: 'Matieres',
+              items: _materials,
+              controller: _newMaterialController,
+              addAction: () => _addCatalogItem(type: 'matiere', controller: _newMaterialController),
+              deleteAction: (item) => _deleteCatalogItem(type: 'matiere', item: item),
+            ),
+            const SizedBox(height: 12),
+            _buildCatalogSection(
+              title: 'Couleurs',
+              items: _colors,
+              controller: _newColorController,
+              addAction: () => _addCatalogItem(type: 'couleur', controller: _newColorController),
+              deleteAction: (item) => _deleteCatalogItem(type: 'couleur', item: item),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCatalogSection({
+    required String title,
+    required List<CatalogItem> items,
+    required TextEditingController controller,
+    required VoidCallback addAction,
+    required ValueChanged<CatalogItem> deleteAction,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+        const SizedBox(height: 6),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: items
+              .map(
+                (item) => InputChip(
+                  label: Text(item.name),
+                  onDeleted: () => deleteAction(item),
+                ),
+              )
+              .toList(),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: controller,
+                decoration: InputDecoration(labelText: 'Ajouter $title'),
+              ),
+            ),
+            const SizedBox(width: 8),
+            FilledButton(
+              onPressed: _isCatalogLoading ? null : addAction,
+              child: const Text('Ajouter'),
+            ),
+          ],
+        ),
+      ],
     );
   }
 
@@ -1657,6 +2024,24 @@ class _NfcStockPageState extends State<NfcStockPage> {
           }),
         ),
       ),
+    );
+  }
+}
+
+class CatalogItem {
+  const CatalogItem({required this.id, required this.name});
+
+  final int id;
+  final String name;
+
+  factory CatalogItem.fromJson(
+    Map<String, dynamic> json, {
+    required String idKey,
+    required String nameKey,
+  }) {
+    return CatalogItem(
+      id: Spool._asInt(json[idKey]),
+      name: (json[nameKey] ?? '').toString(),
     );
   }
 }
@@ -1895,6 +2280,119 @@ class ApiClient {
     }
 
     throw Exception('HTTP ${response.statusCode}: ${response.body}');
+  }
+
+  Future<List<CatalogItem>> getBrands(String token) async {
+    final response = await _client.get(
+      _uri('/api/brands'),
+      headers: _headersWithToken(token),
+    );
+
+    if (response.statusCode == 200) {
+      final decoded = jsonDecode(response.body) as List<dynamic>;
+      return decoded
+          .map(
+            (e) => CatalogItem.fromJson(
+              e as Map<String, dynamic>,
+              idKey: 'id_marques',
+              nameKey: 'nom_marques',
+            ),
+          )
+          .toList();
+    }
+
+    throw ApiHttpException(response.statusCode, response.body);
+  }
+
+  Future<List<CatalogItem>> getMaterials(String token) async {
+    final response = await _client.get(
+      _uri('/api/materials'),
+      headers: _headersWithToken(token),
+    );
+
+    if (response.statusCode == 200) {
+      final decoded = jsonDecode(response.body) as List<dynamic>;
+      return decoded
+          .map(
+            (e) => CatalogItem.fromJson(
+              e as Map<String, dynamic>,
+              idKey: 'id_materials',
+              nameKey: 'type_materials',
+            ),
+          )
+          .toList();
+    }
+
+    throw ApiHttpException(response.statusCode, response.body);
+  }
+
+  Future<List<CatalogItem>> getColors(String token) async {
+    final response = await _client.get(
+      _uri('/api/colors'),
+      headers: _headersWithToken(token),
+    );
+
+    if (response.statusCode == 200) {
+      final decoded = jsonDecode(response.body) as List<dynamic>;
+      return decoded
+          .map(
+            (e) => CatalogItem.fromJson(
+              e as Map<String, dynamic>,
+              idKey: 'id_colors',
+              nameKey: 'color_name',
+            ),
+          )
+          .toList();
+    }
+
+    throw ApiHttpException(response.statusCode, response.body);
+  }
+
+  Future<void> createBrand(String token, String name) async {
+    await _createCatalog('/api/brands', token, name);
+  }
+
+  Future<void> createMaterial(String token, String name) async {
+    await _createCatalog('/api/materials', token, name);
+  }
+
+  Future<void> createColor(String token, String name) async {
+    await _createCatalog('/api/colors', token, name);
+  }
+
+  Future<void> deleteBrand(String token, int id) async {
+    await _deleteCatalog('/api/brands/$id', token);
+  }
+
+  Future<void> deleteMaterial(String token, int id) async {
+    await _deleteCatalog('/api/materials/$id', token);
+  }
+
+  Future<void> deleteColor(String token, int id) async {
+    await _deleteCatalog('/api/colors/$id', token);
+  }
+
+  Future<void> _createCatalog(String path, String token, String name) async {
+    final response = await _client.post(
+      _uri(path),
+      headers: _headersWithToken(token),
+      body: jsonEncode({'name': name}),
+    );
+
+    if (response.statusCode != 201) {
+      throw ApiHttpException(response.statusCode, response.body);
+    }
+  }
+
+  Future<void> _deleteCatalog(String path, String token) async {
+    final response = await _client.delete(
+      _uri(path),
+      headers: _headersWithToken(token),
+    );
+
+    if (response.statusCode != 200) {
+      throw ApiHttpException(response.statusCode, response.body);
+    }
   }
 
   Future<List<Map<String, dynamic>>> getStatsMaterials(String token) async {

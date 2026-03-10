@@ -18,10 +18,45 @@ api_brands:
     controller: App\Controller\ApiController::brands
     methods: [GET]
 
+api_brand_create:
+    path: /api/brands
+    controller: App\Controller\ApiController::createBrand
+    methods: [POST]
+
+api_brand_delete:
+    path: /api/brands/{id}
+    controller: App\Controller\ApiController::deleteBrand
+    methods: [DELETE]
+
 api_materials:
     path: /api/materials
     controller: App\Controller\ApiController::materials
     methods: [GET]
+
+api_material_create:
+    path: /api/materials
+    controller: App\Controller\ApiController::createMaterial
+    methods: [POST]
+
+api_material_delete:
+    path: /api/materials/{id}
+    controller: App\Controller\ApiController::deleteMaterial
+    methods: [DELETE]
+
+api_colors:
+    path: /api/colors
+    controller: App\Controller\ApiController::colors
+    methods: [GET]
+
+api_color_create:
+    path: /api/colors
+    controller: App\Controller\ApiController::createColor
+    methods: [POST]
+
+api_color_delete:
+    path: /api/colors/{id}
+    controller: App\Controller\ApiController::deleteColor
+    methods: [DELETE]
 
 api_spool_by_nfc:
     path: /api/spools/nfc/{uid}
